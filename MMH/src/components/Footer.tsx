@@ -13,7 +13,7 @@ export default function Footer() {
                 <span className="text-white font-bold text-xl">V</span>
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-lg">VisionCare</span>
+                <span className="font-bold text-lg">New Manoj Medical Hall</span>
                 <span className="text-xs text-muted-foreground -mt-1">Pharmacy & Optical</span>
               </div>
             </div>
@@ -56,26 +56,33 @@ export default function Footer() {
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-2 text-muted-foreground">
                 <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-[var(--healthcare-blue)]" />
-                <span>123 Healthcare Plaza, Medical District, NY 10001</span>
+                <span>Makhdumpur Dih, Makhdumpur, Jehanabad, Bihar 804422</span>
               </li>
               <li className="flex items-center gap-2 text-muted-foreground">
                 <Phone className="w-4 h-4 flex-shrink-0 text-[var(--healthcare-blue)]" />
-                <span>+1 (234) 567-8900</span>
+                <span>+91 8340508210</span>
               </li>
               <li className="flex items-center gap-2 text-muted-foreground">
                 <Mail className="w-4 h-4 flex-shrink-0 text-[var(--healthcare-blue)]" />
-                <span>support@visioncare.com</span>
+                <span>support@newmanojmedical.com</span>
               </li>
               <li className="flex items-center gap-2 text-muted-foreground">
                 <Clock className="w-4 h-4 flex-shrink-0 text-[var(--healthcare-blue)]" />
-                <span>Mon-Sun: 9:00 AM - 9:00 PM</span>
+                <span>Daily: 6 AM - 8 PM</span>
+              </li>
+              <li className="flex items-center gap-2 text-muted-foreground">
+                <Clock className="w-4 h-4 flex-shrink-0 text-[var(--healthcare-blue)]" />
+                <span>Eye Doctor: Sundays 10 AM - 4 PM</span>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; 2026 VisionCare Pharmacy & Optical. All rights reserved.</p>
+        <div className="border-t border-border mt-8 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
+          <p>&copy; 2026 New Manoj Medical Hall. All rights reserved.</p>
+          <p>
+            Engineered with ❤️ by <a href="https://aman-40.github.io/pro/" target="_blank" rel="noopener noreferrer" className="text-[var(--healthcare-blue)] hover:underline font-semibold">Aman</a>
+          </p>
         </div>
       </div>
     </footer>

@@ -55,7 +55,7 @@ export default function LandingPage() {
                   <Calendar className="w-5 h-5 mr-2" />
                   Book Online & Pay
                 </Button>
-                <Button variant="outline" size="lg" className="w-full sm:w-auto text-lg px-8 border-[var(--healthcare-blue)] text-[var(--healthcare-blue)]" onClick={() => window.location.href = 'tel:+919876543210'}>
+                <Button variant="outline" size="lg" className="w-full sm:w-auto text-lg px-8 border-[var(--healthcare-blue)] text-[var(--healthcare-blue)]" onClick={() => window.location.href = 'tel:+918340508210'}>
                   <PhoneCall className="w-5 h-5 mr-2" />
                   Call Us
                 </Button>
@@ -72,7 +72,7 @@ export default function LandingPage() {
                   <div className="text-sm text-muted-foreground">Expert Staff</div>
                 </div>
                 <div>
-                  <div className="text-2xl md:text-3xl font-bold text-[var(--healthcare-emerald)]">9AM-9PM</div>
+                  <div className="text-2xl md:text-3xl font-bold text-[var(--healthcare-emerald)]">6AM-8PM</div>
                   <div className="text-sm text-muted-foreground">Open Daily</div>
                 </div>
               </div>
@@ -247,7 +247,7 @@ export default function LandingPage() {
       <section className="py-16 bg-gradient-to-br from-[var(--healthcare-light-blue)] to-[var(--healthcare-light-teal)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Why Choose VisionCare?</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Why Choose New Manoj Medical Hall?</h2>
             <p className="text-lg text-muted-foreground">Your health and satisfaction are our top priorities</p>
           </div>
 
@@ -306,14 +306,14 @@ export default function LandingPage() {
       {/* CTA Section */}
       <section className="py-16 bg-gradient-to-r from-[var(--healthcare-blue)] to-[var(--healthcare-teal)] text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Visit VisionCare Clinic Today</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Visit New Manoj Medical Hall Today</h2>
           <p className="text-lg mb-8 text-white/90">
-            Join thousands of satisfied patients who trust VisionCare for their health needs
+            Join thousands of satisfied patients who trust us for their health needs
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-white text-[var(--healthcare-blue)] hover:bg-slate-100" onClick={() => window.location.href = 'tel:+919876543210'}>
+            <Button size="lg" className="bg-white text-[var(--healthcare-blue)] hover:bg-slate-100" onClick={() => window.location.href = 'tel:+918340508210'}>
               <PhoneCall className="w-5 h-5 mr-2" />
-              Call +91 98765 43210
+              Call +91 8340508210
             </Button>
           </div>
         </div>
@@ -334,10 +334,10 @@ export default function LandingPage() {
               <Calendar className="w-10 h-10 text-blue-500" />
             </div>
             <h3 className="text-2xl font-bold text-slate-800 mb-2">Coming Soon!</h3>
-            <p className="text-slate-500 mb-6">Our online booking portal is currently under construction. Please call us directly to book your appointment.</p>
-            <Button onClick={() => window.location.href = 'tel:+919876543210'} className="w-full bg-blue-600 hover:bg-blue-700" size="lg">
+            <p className="text-slate-500 mb-6">Our online booking portal is currently under construction. Please call us directly to book your appointment with the doctor.</p>
+            <Button onClick={() => window.location.href = 'tel:+917274878151'} className="w-full bg-blue-600 hover:bg-blue-700" size="lg">
               <PhoneCall className="w-5 h-5 mr-2" />
-              Call to Book Now
+              Call to Book Now (7274878151)
             </Button>
           </div>
         </DialogContent>

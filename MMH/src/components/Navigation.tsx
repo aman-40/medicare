@@ -16,7 +16,7 @@ export default function Navigation() {
               <span className="text-white font-bold text-xl">V</span>
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-lg text-foreground">VisionCare</span>
+              <span className="font-bold text-lg text-foreground">New Manoj Medical Hall</span>
               <span className="text-xs text-muted-foreground -mt-1">Pharmacy & Optical</span>
             </div>
           </Link>
@@ -30,11 +30,11 @@ export default function Navigation() {
             <div className="flex items-center gap-4 text-sm text-muted-foreground border-r border-border pr-4">
               <div className="flex items-center gap-1">
                 <Phone className="w-4 h-4" />
-                <span>+91 98765 43210</span>
+                <span>+91 8340508210</span>
               </div>
               <div className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
-                <span>9 AM - 9 PM</span>
+                <span>6 AM - 8 PM</span>
               </div>
             </div>
             <Link to="/login">

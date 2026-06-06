@@ -4,16 +4,6 @@ import Login from "../pages/Login";
 
 // Admin / Internal Layout
 import InternalLayout from "../layouts/InternalLayout";
-import Dashboard from "../pages/internal/Dashboard";
-import PatientRegistration from "../pages/internal/PatientRegistration";
-import PatientRecords from "../pages/internal/PatientRecords";
-import QueueManagement from "../pages/internal/QueueManagement";
-import EyeExamination from "../pages/internal/EyeExamination";
-import OpticalStore from "../pages/internal/OpticalStore";
-import OpticalOrders from "../pages/internal/OpticalOrders";
-import MedicalInventory from "../pages/internal/MedicalInventory";
-import Billing from "../pages/internal/Billing";
-import StaffManagement from "../pages/internal/StaffManagement";
 
 export const router = createBrowserRouter([
   // Public Routes
@@ -25,16 +15,16 @@ export const router = createBrowserRouter([
     path: "/admin",
     Component: InternalLayout,
     children: [
-      { path: "", Component: Dashboard },
-      { path: "patients/register", Component: PatientRegistration },
-      { path: "patients/records", Component: PatientRecords },
-      { path: "queue", Component: QueueManagement },
-      { path: "eye-exams", Component: EyeExamination },
-      { path: "optical-store", Component: OpticalStore },
-      { path: "optical-orders", Component: OpticalOrders },
-      { path: "inventory", Component: MedicalInventory },
-      { path: "billing", Component: Billing },
-      { path: "staff", Component: StaffManagement },
+      { path: "", async lazy() { let { default: Component } = await import("../pages/internal/Dashboard"); return { Component }; } },
+      { path: "patients/register", async lazy() { let { default: Component } = await import("../pages/internal/PatientRegistration"); return { Component }; } },
+      { path: "patients/records", async lazy() { let { default: Component } = await import("../pages/internal/PatientRecords"); return { Component }; } },
+      { path: "queue", async lazy() { let { default: Component } = await import("../pages/internal/QueueManagement"); return { Component }; } },
+      { path: "eye-exams", async lazy() { let { default: Component } = await import("../pages/internal/EyeExamination"); return { Component }; } },
+      { path: "optical-store", async lazy() { let { default: Component } = await import("../pages/internal/OpticalStore"); return { Component }; } },
+      { path: "optical-orders", async lazy() { let { default: Component } = await import("../pages/internal/OpticalOrders"); return { Component }; } },
+      { path: "inventory", async lazy() { let { default: Component } = await import("../pages/internal/MedicalInventory"); return { Component }; } },
+      { path: "billing", async lazy() { let { default: Component } = await import("../pages/internal/Billing"); return { Component }; } },
+      { path: "staff", async lazy() { let { default: Component } = await import("../pages/internal/StaffManagement"); return { Component }; } },
     ]
   }
 ]);
