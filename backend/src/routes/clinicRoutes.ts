@@ -1,31 +1,26 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticate, authorizeRole } from '../middleware/authMiddleware';
+import { authenticate } from '../middleware/authMiddleware';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-import { upload } from '../utils/upload';
-
-// Submit an Eye Report (Doctor Only)
-router.post('/report', authenticate, authorizeRole('DOCTOR'), upload.single('prescriptionFile'), async (req, res) => {
+// Submit an Eye Report (Optometrist/Doctor)
+router.post('/report', authenticate, async (req, res) => {
   try {
-    const { patientId, leftEyePower, rightEyePower, remarks } = req.body;
-    const userId = (req as any).user.userId;
-
-    const doctor = await prisma.doctor.findUnique({ where: { userId } });
-    if (!doctor) return res.status(404).json({ message: 'Doctor profile required' });
-
-    const prescriptionUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    const { 
+      patientId, 
+      rightSph, rightCyl, rightAxis, 
+      leftSph, leftCyl, leftAxis, 
+      addPower, notes, reportData 
+    } = req.body;
 
     const report = await prisma.eyeReport.create({
       data: {
         patientId,
-        doctorId: doctor.id,
-        leftEyePower,
-        rightEyePower,
-        remarks,
-        prescriptionUrl
+        rightSph, rightCyl, rightAxis,
+        leftSph, leftCyl, leftAxis,
+        addPower, notes, reportData
       }
     });
 
@@ -35,18 +30,14 @@ router.post('/report', authenticate, authorizeRole('DOCTOR'), upload.single('pre
   }
 });
 
-// Get a patient's own reports (Protected)
-router.get('/my-reports', authenticate, async (req, res) => {
+// Get all eye reports for a specific patient
+router.get('/patient/:patientId', authenticate, async (req, res) => {
   try {
-    const userId = (req as any).user.userId;
-    const patient = await prisma.patient.findUnique({ where: { userId } });
-    
-    if (!patient) return res.status(404).json({ message: 'Patient profile not found' });
-
+    const { patientId } = req.params;
     const reports = await prisma.eyeReport.findMany({
-      where: { patientId: patient.id },
-      include: { doctor: { include: { user: true } } },
-      orderBy: { createdAt: 'desc' }
+      where: { patientId },
+      orderBy: { createdAt: 'desc' },
+      include: { patient: true }
     });
 
     res.json(reports);
@@ -55,41 +46,18 @@ router.get('/my-reports', authenticate, async (req, res) => {
   }
 });
 
-// Get all reports (Pharmacist / Admin)
-router.get('/reports/all', authenticate, authorizeRole('PHARMACIST', 'ADMIN'), async (req, res) => {
+// Get all reports
+router.get('/reports/all', authenticate, async (req, res) => {
   try {
     const reports = await prisma.eyeReport.findMany({
       include: { 
-        doctor: { include: { user: true } },
-        patient: { include: { user: true } }
+        patient: true
       },
       orderBy: { createdAt: 'desc' }
     });
     res.json(reports);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch all reports' });
-  }
-});
-
-// Get all doctors (Public/Authenticated)
-router.get('/doctors', async (req, res) => {
-  try {
-    const doctors = await prisma.doctor.findMany({
-      include: { user: true }
-    });
-    // Map to a friendlier frontend format
-    const mappedDoctors = doctors.map(d => ({
-      id: d.id,
-      name: `Dr. ${d.user.name}`,
-      specialty: d.specialization,
-      experience: "10+ years", // Hardcoded mock since schema lacks experience
-      rating: 4.8,
-      reviews: 150,
-      fee: "$50", // Hardcoded mock
-    }));
-    res.json(mappedDoctors);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch doctors' });
   }
 });
 

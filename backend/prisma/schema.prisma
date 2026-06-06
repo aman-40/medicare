@@ -13,58 +13,107 @@ enum Role {
   DOCTOR
   RECEPTIONIST
   PHARMACIST
-  CUSTOMER
+  OPTOMETRIST
 }
 
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   password  String
-  role      Role     @default(CUSTOMER)
+  role      Role
   name      String
   phone     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  patient       Patient?
-  doctor        Doctor?
-  notifications Notification[]
 }
 
 model Patient {
-  id      String  @id @default(cuid())
-  userId  String  @unique
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  age     Int?
-  gender  String?
-  address String?
+  id          String   @id @default(cuid())
+  patientCode String   @unique // Auto Generated
+  name        String
+  age         Int?
+  gender      String?
+  phone       String?
+  address     String?
+  occupation  String?
+  createdAt   DateTime @default(now())
 
-  appointments Appointment[]
+  queues       Queue[]
   eyeReports   EyeReport[]
   glassOrders  GlassOrder[]
   invoices     Invoice[]
 }
 
-model Doctor {
-  id             String  @id @default(cuid())
-  userId         String  @unique
-  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  specialization String
-  availability   String?
-
-  appointments Appointment[]
-  eyeReports   EyeReport[]
+model Queue {
+  id          String   @id @default(cuid())
+  tokenNumber Int
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  status      String   @default("Waiting") // Waiting, Serving, Completed
+  createdAt   DateTime @default(now())
 }
 
-// =======================
-// INVENTORY MODELS
-// =======================
+model EyeReport {
+  id        String  @id @default(cuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
+  
+  rightSph  String?
+  rightCyl  String?
+  rightAxis String?
+  leftSph   String?
+  leftCyl   String?
+  leftAxis  String?
+  addPower  String?
+  notes     String?
+  reportData Json?
+
+  createdAt DateTime @default(now())
+}
+
+model Frame {
+  id           String  @id @default(cuid())
+  name         String
+  brand        String
+  modelNo      String?
+  color        String?
+  stock        Int     @default(0)
+  purchasePrice Float  @default(0)
+  sellingPrice  Float  @default(0)
+
+  glassOrders GlassOrder[]
+}
+
+model Lens {
+  id           String @id @default(cuid())
+  type         String // Single Vision, Progressive, etc.
+  brand        String
+  purchasePrice Float  @default(0)
+  sellingPrice  Float  @default(0)
+
+  glassOrders GlassOrder[]
+}
+
+model GlassOrder {
+  id          String   @id @default(cuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  frameId     String
+  frame       Frame    @relation(fields: [frameId], references: [id])
+  lensId      String
+  lens        Lens     @relation(fields: [lensId], references: [id])
+  
+  status      String   @default("Pending") // Pending, In Progress, Ready, Delivered
+  totalAmount Float
+  deliveryDate DateTime?
+
+  createdAt   DateTime @default(now())
+}
 
 model Medicine {
   id            String   @id @default(cuid())
   name          String
   company       String
-  category      String
   batchNo       String
   purchasePrice Float
   sellingPrice  Float
@@ -77,148 +126,35 @@ model Medicine {
 }
 
 model Supplier {
-  id      String @id @default(cuid())
-  name    String
-  phone   String
-  email   String?
-  address String?
+  id        String @id @default(cuid())
+  name      String
+  phone     String
+  address   String?
+  gstNumber String?
 
   medicines Medicine[]
 }
 
-model Purchase {
-  id          String @id @default(cuid())
-  invoiceNo   String
-  supplierId  String
+model Invoice {
+  id          String   @id @default(cuid())
+  invoiceNo   String   @unique
+  patientId   String?
+  patient     Patient? @relation(fields: [patientId], references: [id])
+  patientName String?
+  subtotal    Float    @default(0)
+  gstAmount   Float    @default(0)
   totalAmount Float
   createdAt   DateTime @default(now())
+
+  items       InvoiceItem[]
 }
 
-model InventoryLog {
-  id          String @id @default(cuid())
-  productType String
-  productId   String
-  action      String
-  quantity    Int
-  remarks     String?
-  createdAt   DateTime @default(now())
-}
-
-model Frame {
-  id           String  @id @default(cuid())
-  name         String
-  brand        String
-  modelNumber  String?
-  frameType    String? // Full Rim, Half Rim, Rimless
-  material     String? // Metal, Plastic, Titanium
-  gender       String? // Men, Women, Kids
-  color        String?
-  stock        Int     @default(0)
-  purchasePrice Float  @default(0)
-  sellingPrice  Float  @default(0)
-  imageUrl     String?
-
-  glassOrders GlassOrder[]
-}
-
-model Lens {
-  id           String @id @default(cuid())
-  name         String
-  type         String // Single Vision, Progressive, etc.
-  material     String?
-  stock        Int    @default(0)
-  purchaseCost Float  @default(0)
-  sellingPrice Float  @default(0)
-
-  glassOrders GlassOrder[]
-}
-
-// =======================
-// CLINIC & BILLING
-// =======================
-
-model Appointment {
-  id        String   @id @default(cuid())
-  patientId String
-  patient   Patient  @relation(fields: [patientId], references: [id])
-  doctorId  String
-  doctor    Doctor   @relation(fields: [doctorId], references: [id])
-  date      DateTime
-  status    String   @default("Scheduled")
-
-  queue Queue?
-}
-
-model Queue {
-  id            String      @id @default(cuid())
-  appointmentId String      @unique
-  appointment   Appointment @relation(fields: [appointmentId], references: [id])
-  tokenNumber   Int
-  status        String      @default("Waiting")
-  createdAt     DateTime    @default(now())
-}
-
-model EyeReport {
-  id        String  @id @default(cuid())
-  patientId String
-  patient   Patient @relation(fields: [patientId], references: [id])
-  doctorId  String
-  doctor    Doctor  @relation(fields: [doctorId], references: [id])
-
-  leftEyePower    String
-  rightEyePower   String
-  remarks         String?
-  prescriptionUrl String?
-
-  createdAt DateTime @default(now())
-}
-
-model GlassOrder {
-  id        String  @id @default(cuid())
-  patientId String
-  patient   Patient @relation(fields: [patientId], references: [id])
-  frameId   String
-  frame     Frame   @relation(fields: [frameId], references: [id])
-  lensId    String
-  lens      Lens    @relation(fields: [lensId], references: [id])
-
-  status      String @default("Pending")
-  totalAmount Float
-
-  createdAt DateTime @default(now())
-}
-
-model Sale {
+model InvoiceItem {
   id          String  @id @default(cuid())
   invoiceId   String
-  invoice     Invoice @relation(fields: [invoiceId], references: [id])
-  productId   String
-  productType String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productName String
   quantity    Int
-  unitPrice   Float
-  total       Float
-}
-
-model Invoice {
-  id          String  @id @default(cuid())
-  patientId   String
-  patient     Patient @relation(fields: [patientId], references: [id])
-  invoiceNo   String  @unique
-  gst         Float
-  totalAmount Float
-  status      String  @default("Unpaid")
-
-  sales     Sale[]
-  createdAt DateTime @default(now())
-}
-
-model Notification {
-  id      String  @id @default(cuid())
-  userId  String
-  user    User    @relation(fields: [userId], references: [id])
-  type    String
-  message String
-  isRead  Boolean @default(false)
-
-  createdAt DateTime @default(now())
+  rate        Float
+  amount      Float
 }

@@ -4,6 +4,8 @@ import Footer from "../components/Footer";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { useState } from "react";
 import {
   Stethoscope,
   Eye,
@@ -17,10 +19,17 @@ import {
   ChevronRight,
   Truck,
   HeartPulse,
-  Award
+  Award,
+  PhoneCall
 } from "lucide-react";
 
 export default function LandingPage() {
+  const [bookingOpen, setBookingOpen] = useState(false);
+
+  const closeBooking = () => {
+    setBookingOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <Navigation />
@@ -38,37 +47,33 @@ export default function LandingPage() {
                 <span className="text-[var(--healthcare-blue)]">Under One Roof</span>
               </h1>
               <p className="text-lg text-muted-foreground">
-                Book eye checkups, order medicines, buy glasses, and manage your health digitally.
+                Visit our clinic for professional eye checkups, genuine medicines, and premium glasses.
                 Experience premium healthcare services with a modern, convenient approach.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link to="/appointments">
-                  <Button size="lg" className="w-full sm:w-auto bg-[var(--healthcare-blue)] hover:bg-[var(--healthcare-cyan)] text-lg px-8">
-                    <Eye className="w-5 h-5 mr-2" />
-                    Book Eye Test
-                  </Button>
-                </Link>
-                <Link to="/medicines">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg px-8 border-[var(--healthcare-teal)] text-[var(--healthcare-teal)] hover:bg-[var(--healthcare-light-teal)]">
-                    <Pill className="w-5 h-5 mr-2" />
-                    Order Medicines
-                  </Button>
-                </Link>
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <Button size="lg" className="w-full sm:w-auto bg-[var(--healthcare-blue)] hover:bg-[var(--healthcare-cyan)] text-lg px-8" onClick={() => setBookingOpen(true)}>
+                  <Calendar className="w-5 h-5 mr-2" />
+                  Book Online & Pay
+                </Button>
+                <Button variant="outline" size="lg" className="w-full sm:w-auto text-lg px-8 border-[var(--healthcare-blue)] text-[var(--healthcare-blue)]" onClick={() => window.location.href = 'tel:+919876543210'}>
+                  <PhoneCall className="w-5 h-5 mr-2" />
+                  Call Us
+                </Button>
               </div>
 
               {/* Stats */}
               <div className="grid grid-cols-3 gap-4 pt-8 border-t border-border">
                 <div>
                   <div className="text-2xl md:text-3xl font-bold text-[var(--healthcare-blue)]">50K+</div>
-                  <div className="text-sm text-muted-foreground">Happy Customers</div>
+                  <div className="text-sm text-muted-foreground">Happy Patients</div>
                 </div>
                 <div>
                   <div className="text-2xl md:text-3xl font-bold text-[var(--healthcare-teal)]">15+</div>
-                  <div className="text-sm text-muted-foreground">Expert Doctors</div>
+                  <div className="text-sm text-muted-foreground">Expert Staff</div>
                 </div>
                 <div>
-                  <div className="text-2xl md:text-3xl font-bold text-[var(--healthcare-emerald)]">24/7</div>
-                  <div className="text-sm text-muted-foreground">Support</div>
+                  <div className="text-2xl md:text-3xl font-bold text-[var(--healthcare-emerald)]">9AM-9PM</div>
+                  <div className="text-sm text-muted-foreground">Open Daily</div>
                 </div>
               </div>
             </div>
@@ -125,31 +130,22 @@ export default function LandingPage() {
                 </div>
                 <CardTitle className="text-2xl">Medical Store</CardTitle>
                 <CardDescription className="text-base">
-                  Premium quality medicines delivered to your doorstep
+                  Premium quality medicines available in-store
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <ChevronRight className="w-4 h-4 text-[var(--healthcare-blue)]" />
-                  <span>Medicine delivery in 24 hours</span>
+                  <span>Wide range of generic & branded medicines</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <ChevronRight className="w-4 h-4 text-[var(--healthcare-blue)]" />
-                  <span>Prescription upload & verification</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <ChevronRight className="w-4 h-4 text-[var(--healthcare-blue)]" />
-                  <span>Online ordering & tracking</span>
+                  <span>Expert pharmacist consultation</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <ChevronRight className="w-4 h-4 text-[var(--healthcare-blue)]" />
                   <span>Genuine medicines guarantee</span>
                 </div>
-                <Link to="/medicines" className="block pt-2">
-                  <Button className="w-full bg-[var(--healthcare-blue)] hover:bg-[var(--healthcare-cyan)]">
-                    Order Now
-                  </Button>
-                </Link>
               </CardContent>
             </Card>
 
@@ -171,21 +167,12 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <ChevronRight className="w-4 h-4 text-[var(--healthcare-teal)]" />
-                  <span>Digital prescriptions</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <ChevronRight className="w-4 h-4 text-[var(--healthcare-teal)]" />
-                  <span>Easy appointment booking</span>
+                  <span>Advanced diagnostic equipment</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <ChevronRight className="w-4 h-4 text-[var(--healthcare-teal)]" />
                   <span>Experienced optometrists</span>
                 </div>
-                <Link to="/appointments" className="block pt-2">
-                  <Button className="w-full bg-[var(--healthcare-teal)] hover:bg-[var(--healthcare-emerald)]">
-                    Book Appointment
-                  </Button>
-                </Link>
               </CardContent>
             </Card>
 
@@ -211,17 +198,8 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <ChevronRight className="w-4 h-4 text-[var(--healthcare-emerald)]" />
-                  <span>Virtual try-on feature</span>
+                  <span>Fast delivery on custom lenses</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <ChevronRight className="w-4 h-4 text-[var(--healthcare-emerald)]" />
-                  <span>Premium eyewear brands</span>
-                </div>
-                <Link to="/optical-store" className="block pt-2">
-                  <Button className="w-full bg-[var(--healthcare-emerald)] hover:bg-[var(--healthcare-teal)]">
-                    Shop Now
-                  </Button>
-                </Link>
               </CardContent>
             </Card>
           </div>
@@ -233,32 +211,21 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h2 className="text-3xl font-bold mb-2">Featured Medicines</h2>
-              <p className="text-muted-foreground">Popular and trusted medications</p>
+              <h2 className="text-3xl font-bold mb-2">Available In-Store</h2>
+              <p className="text-muted-foreground">Popular medicines & opticals</p>
             </div>
-            <Link to="/medicines">
-              <Button variant="outline">
-                View All
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </Link>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { name: "Paracetamol 500mg", manufacturer: "Generic Pharma", price: "$5.99", image: "https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxtZWRpY2luZSUyMHBpbGxzJTIwcGhhcm1hY3l8ZW58MXx8fHwxNzgwNzM5MjgyfDA&ixlib=rb-4.1.0&q=80&w=1080", badge: "Best Seller" },
-              { name: "Vitamin D3 1000 IU", manufacturer: "HealthVit", price: "$12.99", image: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwzfHxtZWRpY2luZSUyMHBpbGxzJTIwcGhhcm1hY3l8ZW58MXx8fHwxNzgwNzM5MjgyfDA&ixlib=rb-4.1.0&q=80&w=1080", badge: "Popular" },
-              { name: "Omega-3 Fish Oil", manufacturer: "NutraLife", price: "$18.99", image: "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw1fHxtZWRpY2luZSUyMHBpbGxzJTIwcGhhcm1hY3l8ZW58MXx8fHwxNzgwNzM5MjgyfDA&ixlib=rb-4.1.0&q=80&w=1080" },
-              { name: "Multivitamin Complex", manufacturer: "WellCare", price: "$22.99", image: "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw0fHxtZWRpY2luZSUyMHBpbGxzJTIwcGhhcm1hY3l8ZW58MXx8fHwxNzgwNzM5MjgyfDA&ixlib=rb-4.1.0&q=80&w=1080" },
+              { name: "Pain Relief Options", type: "Medicines", image: "https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxtZWRpY2luZSUyMHBpbGxzJTIwcGhhcm1hY3l8ZW58MXx8fHwxNzgwNzM5MjgyfDA&ixlib=rb-4.1.0&q=80&w=1080" },
+              { name: "Vitamins & Supplements", type: "Health & Wellness", image: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwzfHxtZWRpY2luZSUyMHBpbGxzJTIwcGhhcm1hY3l8ZW58MXx8fHwxNzgwNzM5MjgyfDA&ixlib=rb-4.1.0&q=80&w=1080" },
+              { name: "Premium Frames", type: "Optical Store", image: "https://images.unsplash.com/photo-1614715838608-dd527c46231d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxleWVnbGFzc2VzJTIwb3B0aWNhbCUyMGZyYW1lc3xlbnwxfHx8fDE3ODA3MzkyODF8MA&ixlib=rb-4.1.0&q=80&w=1080" },
+              { name: "Contact Lenses", type: "Optical Store", image: "https://images.unsplash.com/photo-1483412468200-72182dbbc544?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw4fHxleWVnbGFzc2VzJTIwb3B0aWNhbCUyMGZyYW1lc3xlbnwxfHx8fDE3ODA3MzkyODF8MA&ixlib=rb-4.1.0&q=80&w=1080" },
             ].map((product, idx) => (
-              <Card key={idx} className="group hover:shadow-lg transition-all cursor-pointer">
+              <Card key={idx} className="group hover:shadow-lg transition-all">
                 <CardContent className="p-0">
                   <div className="relative overflow-hidden rounded-t-lg">
-                    {product.badge && (
-                      <Badge className="absolute top-2 right-2 z-10 bg-[var(--healthcare-emerald)] text-white">
-                        {product.badge}
-                      </Badge>
-                    )}
                     <img
                       src={product.image}
                       alt={product.name}
@@ -267,73 +234,10 @@ export default function LandingPage() {
                   </div>
                   <div className="p-4 space-y-2">
                     <h3 className="font-semibold text-lg">{product.name}</h3>
-                    <p className="text-sm text-muted-foreground">{product.manufacturer}</p>
-                    <div className="flex items-center justify-between pt-2">
-                      <span className="text-xl font-bold text-[var(--healthcare-blue)]">{product.price}</span>
-                      <Button size="sm" className="bg-[var(--healthcare-blue)] hover:bg-[var(--healthcare-cyan)]">
-                        <ShoppingCart className="w-4 h-4 mr-1" />
-                        Add
-                      </Button>
-                    </div>
+                    <p className="text-sm text-muted-foreground">{product.type}</p>
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Eyeglasses Collection */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h2 className="text-3xl font-bold mb-2">Premium Eyewear Collection</h2>
-              <p className="text-muted-foreground">Stylish frames from top brands</p>
-            </div>
-            <Link to="/optical-store">
-              <Button variant="outline">
-                View All
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { name: "Classic Round Frame", brand: "Ray-Ban", price: "$149.99", image: "https://images.unsplash.com/photo-1614715838608-dd527c46231d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxleWVnbGFzc2VzJTIwb3B0aWNhbCUyMGZyYW1lc3xlbnwxfHx8fDE3ODA3MzkyODF8MA&ixlib=rb-4.1.0&q=80&w=1080", rating: 4.8 },
-              { name: "Modern Aviator", brand: "Oakley", price: "$189.99", image: "https://images.unsplash.com/photo-1556306510-31ca015374b0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxleWVnbGFzc2VzJTIwb3B0aWNhbCUyMGZyYW1lc3xlbnwxfHx8fDE3ODA3MzkyODF8MA&ixlib=rb-4.1.0&q=80&w=1080", rating: 4.9 },
-              { name: "Rectangular Designer", brand: "Gucci", price: "$299.99", image: "https://images.unsplash.com/photo-1591076482161-42ce6da69f67?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw1fHxleWVnbGFzc2VzJTIwb3B0aWNhbCUyMGZyYW1lc3xlbnwxfHx8fDE3ODA3MzkyODF8MA&ixlib=rb-4.1.0&q=80&w=1080", rating: 4.7 },
-              { name: "Blue Cut Lens", brand: "Lenskart", price: "$99.99", image: "https://images.unsplash.com/photo-1483412468200-72182dbbc544?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw4fHxleWVnbGFzc2VzJTIwb3B0aWNhbCUyMGZyYW1lc3xlbnwxfHx8fDE3ODA3MzkyODF8MA&ixlib=rb-4.1.0&q=80&w=1080", rating: 4.6 },
-            ].map((product, idx) => (
-              <Link to={`/optical/${idx + 1}`} key={idx}>
-                <Card className="group hover:shadow-lg transition-all cursor-pointer h-full">
-                  <CardContent className="p-0">
-                    <div className="relative overflow-hidden rounded-t-lg bg-slate-100">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-56 object-cover group-hover:scale-105 transition-transform"
-                      />
-                    </div>
-                    <div className="p-4 space-y-2">
-                      <div className="flex items-center gap-1 text-sm text-amber-500">
-                        <Star className="w-4 h-4 fill-current" />
-                        <span className="font-semibold">{product.rating}</span>
-                        <span className="text-muted-foreground">(128)</span>
-                      </div>
-                      <h3 className="font-semibold text-lg">{product.name}</h3>
-                      <p className="text-sm text-muted-foreground">{product.brand}</p>
-                      <div className="flex items-center justify-between pt-2">
-                        <span className="text-xl font-bold text-[var(--healthcare-teal)]">{product.price}</span>
-                        <Button size="sm" variant="outline" className="border-[var(--healthcare-teal)] text-[var(--healthcare-teal)] hover:bg-[var(--healthcare-light-teal)]">
-                          View Details
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
             ))}
           </div>
         </div>
@@ -350,7 +254,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { icon: Shield, title: "100% Genuine", description: "Authentic medicines and certified eyewear" },
-              { icon: Truck, title: "Fast Delivery", description: "Quick delivery within 24-48 hours" },
+              { icon: Truck, title: "On-time Delivery", description: "Quick opticals delivery" },
               { icon: HeartPulse, title: "Expert Care", description: "Experienced doctors and optometrists" },
               { icon: Award, title: "Best Prices", description: "Competitive pricing with quality assurance" },
             ].map((feature, idx) => (
@@ -371,14 +275,14 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <Badge className="mb-4 bg-[var(--healthcare-light-teal)] text-[var(--healthcare-teal)]">Testimonials</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">What Our Customers Say</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">What Our Patients Say</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { name: "Sarah Johnson", role: "Regular Customer", text: "Excellent service! Got my eye checkup done and ordered glasses on the same day. Very convenient and professional.", rating: 5 },
-              { name: "Michael Chen", role: "Patient", text: "The online medicine ordering is so easy. Delivery was quick and all medicines were genuine. Highly recommended!", rating: 5 },
-              { name: "Emily Rodriguez", role: "Eyewear Customer", text: "Amazing collection of frames! The virtual try-on feature helped me choose the perfect glasses. Love them!", rating: 5 },
+              { name: "Sarah Johnson", role: "Regular Patient", text: "Excellent service! Got my eye checkup done and ordered glasses on the same day. Very convenient and professional.", rating: 5 },
+              { name: "Michael Chen", role: "Patient", text: "The staff at the clinic are very helpful. The doctor took their time to explain my prescription. Highly recommended!", rating: 5 },
+              { name: "Emily Rodriguez", role: "Eyewear Customer", text: "Amazing collection of frames! The optometrist helped me choose the perfect glasses. Love them!", rating: 5 },
             ].map((testimonial, idx) => (
               <Card key={idx} className="border-2">
                 <CardContent className="p-6">
@@ -402,27 +306,42 @@ export default function LandingPage() {
       {/* CTA Section */}
       <section className="py-16 bg-gradient-to-r from-[var(--healthcare-blue)] to-[var(--healthcare-teal)] text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Experience Better Healthcare?</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Visit VisionCare Clinic Today</h2>
           <p className="text-lg mb-8 text-white/90">
-            Join thousands of satisfied customers who trust VisionCare for their health needs
+            Join thousands of satisfied patients who trust VisionCare for their health needs
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/register">
-              <Button size="lg" className="bg-white text-[var(--healthcare-blue)] hover:bg-slate-100">
-                Create Account
-              </Button>
-            </Link>
-            <Link to="/appointments">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
-                <Calendar className="w-5 h-5 mr-2" />
-                Book Appointment
-              </Button>
-            </Link>
+            <Button size="lg" className="bg-white text-[var(--healthcare-blue)] hover:bg-slate-100" onClick={() => window.location.href = 'tel:+919876543210'}>
+              <PhoneCall className="w-5 h-5 mr-2" />
+              Call +91 98765 43210
+            </Button>
           </div>
         </div>
       </section>
 
       <Footer />
+
+      {/* Online Booking Dialog */}
+      <Dialog open={bookingOpen} onOpenChange={closeBooking}>
+        <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden rounded-2xl">
+          <div className="bg-gradient-to-r from-[var(--healthcare-blue)] to-[var(--healthcare-teal)] p-6 text-white text-center">
+            <DialogTitle className="text-2xl font-bold">Online Appointment</DialogTitle>
+            <p className="text-white/80 mt-1">Book your eye checkup in seconds</p>
+          </div>
+          
+          <div className="p-10 bg-white text-center">
+            <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-blue-100">
+              <Calendar className="w-10 h-10 text-blue-500" />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-800 mb-2">Coming Soon!</h3>
+            <p className="text-slate-500 mb-6">Our online booking portal is currently under construction. Please call us directly to book your appointment.</p>
+            <Button onClick={() => window.location.href = 'tel:+919876543210'} className="w-full bg-blue-600 hover:bg-blue-700" size="lg">
+              <PhoneCall className="w-5 h-5 mr-2" />
+              Call to Book Now
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

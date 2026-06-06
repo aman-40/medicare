@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticate, authorizeRole } from '../middleware/authMiddleware';
+import { authenticate } from '../middleware/authMiddleware';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -14,13 +14,10 @@ router.get('/dashboard', authenticate, async (req, res) => {
       prisma.lens.count(),
     ]);
 
-    // Low stock items (assuming threshold < 10)
     const lowStockMedicines = await prisma.medicine.count({ where: { stock: { lt: 10 } } });
     const lowStockFrames = await prisma.frame.count({ where: { stock: { lt: 10 } } });
-    const lowStockLenses = await prisma.lens.count({ where: { stock: { lt: 10 } } });
-    const lowStockItems = lowStockMedicines + lowStockFrames + lowStockLenses;
+    const lowStockItems = lowStockMedicines + lowStockFrames;
 
-    // Expiring soon (within 60 days)
     const sixtyDaysFromNow = new Date();
     sixtyDaysFromNow.setDate(sixtyDaysFromNow.getDate() + 60);
     const expiringSoon = await prisma.medicine.count({
@@ -30,13 +27,8 @@ router.get('/dashboard', authenticate, async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const todaysPurchases = await prisma.purchase.aggregate({
-      where: { createdAt: { gte: today } },
-      _sum: { totalAmount: true }
-    });
-
     const todaysSales = await prisma.invoice.aggregate({
-      where: { createdAt: { gte: today }, status: 'Paid' },
+      where: { createdAt: { gte: today } },
       _sum: { totalAmount: true }
     });
 
@@ -46,7 +38,6 @@ router.get('/dashboard', authenticate, async (req, res) => {
       totalLenses: lenses,
       lowStockItems,
       expiringSoon,
-      todaysPurchases: todaysPurchases._sum.totalAmount || 0,
       todaysSales: todaysSales._sum.totalAmount || 0,
     });
   } catch (error) {
@@ -54,71 +45,17 @@ router.get('/dashboard', authenticate, async (req, res) => {
   }
 });
 
-// Record a new purchase and auto-update stock
-router.post('/purchases', authenticate, authorizeRole('ADMIN', 'PHARMACIST', 'OWNER'), async (req, res) => {
-  try {
-    const { invoiceNo, supplierId, totalAmount, items } = req.body;
-    // items: Array of { productType, productId, quantity, price, remarks }
-
-    // Start a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Create the purchase record
-      const purchase = await tx.purchase.create({
-        data: { invoiceNo, supplierId, totalAmount }
-      });
-
-      // 2. Process each item
-      for (const item of items) {
-        // Log the inventory action
-        await tx.inventoryLog.create({
-          data: {
-            productType: item.productType, // 'Medicine', 'Frame', 'Lens'
-            productId: item.productId,
-            action: 'Purchase Entry',
-            quantity: item.quantity,
-            remarks: item.remarks || `Purchase Inv: ${invoiceNo}`
-          }
-        });
-
-        // Auto Update Stock
-        if (item.productType === 'Medicine') {
-          await tx.medicine.update({
-            where: { id: item.productId },
-            data: { stock: { increment: item.quantity } }
-          });
-        } else if (item.productType === 'Frame') {
-          await tx.frame.update({
-            where: { id: item.productId },
-            data: { stock: { increment: item.quantity } }
-          });
-        } else if (item.productType === 'Lens') {
-          await tx.lens.update({
-            where: { id: item.productId },
-            data: { stock: { increment: item.quantity } }
-          });
-        }
-      }
-      return purchase;
-    });
-
-    res.status(201).json(result);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to record purchase' });
-  }
-});
-
 // Expiry Management
 router.get('/expiry', authenticate, async (req, res) => {
   try {
     const now = new Date();
-    
     const sixtyDaysFromNow = new Date();
     sixtyDaysFromNow.setDate(now.getDate() + 60);
 
     const expiringMedicines = await prisma.medicine.findMany({
       where: { expiryDate: { lte: sixtyDaysFromNow } },
-      orderBy: { expiryDate: 'asc' }
+      orderBy: { expiryDate: 'asc' },
+      include: { supplier: true }
     });
 
     res.json(expiringMedicines);
@@ -127,16 +64,118 @@ router.get('/expiry', authenticate, async (req, res) => {
   }
 });
 
-// View Inventory Logs (Audit Trail)
-router.get('/logs', authenticate, async (req, res) => {
+// Get All Medicines
+router.get('/medicines', authenticate, async (req, res) => {
   try {
-    const logs = await prisma.inventoryLog.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 100
+    const medicines = await prisma.medicine.findMany({
+      include: { supplier: true },
+      orderBy: { createdAt: 'desc' }
     });
-    res.json(logs);
+    res.json(medicines);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch inventory logs' });
+    res.status(500).json({ error: 'Failed to fetch medicines' });
+  }
+});
+
+// Add New Medicine (with auto-supplier creation)
+router.post('/medicines', authenticate, async (req, res) => {
+  try {
+    const { 
+      name, company, batchNo, purchasePrice, sellingPrice, stock, expiryDate, 
+      supplierName, supplierPhone 
+    } = req.body;
+
+    // Find or Create Supplier
+    let supplier = await prisma.supplier.findFirst({
+      where: { name: supplierName }
+    });
+
+    if (!supplier) {
+      supplier = await prisma.supplier.create({
+        data: {
+          name: supplierName,
+          phone: supplierPhone || 'N/A'
+        }
+      });
+    }
+
+    const medicine = await prisma.medicine.create({
+      data: {
+        name,
+        company,
+        batchNo,
+        purchasePrice: parseFloat(purchasePrice),
+        sellingPrice: parseFloat(sellingPrice),
+        stock: parseInt(stock),
+        expiryDate: new Date(expiryDate),
+        supplierId: supplier.id
+      },
+      include: { supplier: true }
+    });
+
+    res.status(201).json(medicine);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to add medicine' });
+  }
+});
+
+// Update an existing Medicine
+router.put('/medicines/:id', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      name, company, batchNo, purchasePrice, sellingPrice, stock, expiryDate, 
+      supplierName, supplierPhone 
+    } = req.body;
+
+    // Find or Create Supplier
+    let supplier = await prisma.supplier.findFirst({
+      where: { name: supplierName }
+    });
+
+    if (!supplier) {
+      supplier = await prisma.supplier.create({
+        data: {
+          name: supplierName,
+          phone: supplierPhone || 'N/A'
+        }
+      });
+    }
+
+    const medicine = await prisma.medicine.update({
+      where: { id },
+      data: {
+        name,
+        company,
+        batchNo,
+        purchasePrice: parseFloat(purchasePrice),
+        sellingPrice: parseFloat(sellingPrice),
+        stock: parseInt(stock),
+        expiryDate: new Date(expiryDate),
+        supplierId: supplier.id
+      },
+      include: { supplier: true }
+    });
+
+    res.json(medicine);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to update medicine' });
+  }
+});
+
+// Delete a Medicine
+router.delete('/medicines/:id', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.medicine.delete({
+      where: { id }
+    });
+    res.json({ message: 'Medicine deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete medicine' });
   }
 });
 

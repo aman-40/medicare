@@ -1,55 +1,62 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/authMiddleware';
-import { sendInvoiceEmail } from '../utils/mailer';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-// Generate an Invoice and Order
-router.post('/checkout', authenticate, async (req, res) => {
+// Generate an Invoice
+router.post('/invoice', authenticate, async (req, res) => {
   try {
-    const { items } = req.body; // Array of { id, type, quantity, price }
-    const userId = (req as any).user.userId;
+    const { patientId, patientName, items } = req.body; // items: Array of { productName, quantity, rate }
 
-    const patient = await prisma.patient.findUnique({ 
-      where: { userId },
-      include: { user: true }
-    });
-    if (!patient) return res.status(404).json({ message: 'Patient profile required for checkout' });
+    if (!patientId && !patientName) return res.status(400).json({ message: 'Patient Name is required' });
 
     // Calculate totals
-    const subtotal = items.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0);
-    const gst = subtotal * 0.18; // 18% GST example
-    const totalAmount = subtotal + gst;
+    const subtotal = items.reduce((acc: number, item: any) => acc + (item.rate * item.quantity), 0);
+    const gstAmount = subtotal * 0.18; // 18% GST example
+    const totalAmount = subtotal + gstAmount;
 
     // Create Invoice
-    const invoiceNo = `INV-${Date.now()}`;
+    const count = await prisma.invoice.count();
+    const invoiceNo = `INV-${10000 + count + 1}`;
+
     const invoice = await prisma.invoice.create({
       data: {
-        patientId: patient.id,
+        patientId: patientId || null,
+        patientName: patientName || null,
         invoiceNo,
-        gst,
+        subtotal,
+        gstAmount,
         totalAmount,
-        status: 'Unpaid',
-        sales: {
+        items: {
           create: items.map((item: any) => ({
-            productId: item.id,
-            productType: item.type, // 'Medicine' or 'Optical'
+            productName: item.productName,
             quantity: item.quantity,
-            unitPrice: item.price,
-            total: item.price * item.quantity
+            rate: item.rate,
+            amount: item.rate * item.quantity
           }))
         }
-      }
+      },
+      include: { items: true, patient: true }
     });
-
-    // Send email notification (Fire and forget)
-    sendInvoiceEmail(patient.user.email, invoiceNo, totalAmount);
 
     res.status(201).json(invoice);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to process checkout' });
+    res.status(500).json({ error: 'Failed to generate invoice' });
+  }
+});
+
+// Get all invoices
+router.get('/', authenticate, async (req, res) => {
+  try {
+    const invoices = await prisma.invoice.findMany({
+      include: { patient: true },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(invoices);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch invoices' });
   }
 });
 

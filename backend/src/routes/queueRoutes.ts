@@ -1,32 +1,37 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticate, authorizeRole } from '../middleware/authMiddleware';
+import { authenticate } from '../middleware/authMiddleware';
 import { io } from '../index'; // Import socket instance
 
 const router = Router();
 const prisma = new PrismaClient();
 
 // Get the current queue status
-router.get('/', async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     const queueItems = await prisma.queue.findMany({
-      where: { status: 'Waiting' },
+      where: { 
+        status: { in: ['Waiting', 'Serving'] }
+      },
+      include: { patient: true },
       orderBy: { tokenNumber: 'asc' },
     });
     
-    const currentToken = queueItems.length > 0 ? queueItems[0].tokenNumber : null;
+    const currentToken = queueItems.find(q => q.status === 'Serving')?.tokenNumber || 
+                         queueItems.find(q => q.status === 'Waiting')?.tokenNumber || null;
+                         
     res.json({ currentToken, queueItems });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch queue' });
   }
 });
 
-// Generate a new token for an appointment (Receptionist only)
-router.post('/generate', authenticate, authorizeRole('RECEPTIONIST', 'ADMIN'), async (req, res) => {
+// Generate a new token for a patient
+router.post('/generate', authenticate, async (req, res) => {
   try {
-    const { appointmentId } = req.body;
+    const { patientId } = req.body;
     
-    // Auto-increment token logic
+    // Auto-increment token logic for today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -37,9 +42,11 @@ router.post('/generate', authenticate, authorizeRole('RECEPTIONIST', 'ADMIN'), a
 
     const queueItem = await prisma.queue.create({
       data: {
-        appointmentId,
+        patientId,
         tokenNumber: nextToken,
-      }
+        status: 'Waiting'
+      },
+      include: { patient: true }
     });
 
     // Emit the update via Socket.io
@@ -51,39 +58,37 @@ router.post('/generate', authenticate, authorizeRole('RECEPTIONIST', 'ADMIN'), a
   }
 });
 
-// Call next patient (Doctor only)
-router.post('/next', authenticate, authorizeRole('DOCTOR', 'ADMIN'), async (req, res) => {
+// Update queue status (e.g., mark as Serving or Completed)
+router.put('/:id/status', authenticate, async (req, res) => {
   try {
-    const waitingItems = await prisma.queue.findMany({
-      where: { status: 'Waiting' },
-      orderBy: { tokenNumber: 'asc' },
-      take: 1
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const queueItem = await prisma.queue.update({
+      where: { id },
+      data: { status },
+      include: { patient: true }
     });
 
-    if (waitingItems.length === 0) {
-      return res.status(404).json({ message: 'No patients waiting' });
-    }
+    io.emit('queue-updated', { message: `Token ${queueItem.tokenNumber} is now ${status}` });
 
-    const nextPatient = waitingItems[0];
-    await prisma.queue.update({
-      where: { id: nextPatient.id },
-      data: { status: 'InConsultation' }
-    });
-
-    // Determine the *new* current token (the person after them)
-    const newWaitingList = await prisma.queue.findMany({
-      where: { status: 'Waiting' },
-      orderBy: { tokenNumber: 'asc' },
-      take: 1
-    });
-    const currentToken = newWaitingList.length > 0 ? newWaitingList[0].tokenNumber : null;
-
-    // Emit update
-    io.emit('queue-updated', { currentToken, message: `Calling token ${nextPatient.tokenNumber}` });
-
-    res.json({ calledToken: nextPatient.tokenNumber, newCurrentToken: currentToken });
+    res.json(queueItem);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to call next patient' });
+    res.status(500).json({ error: 'Failed to update queue status' });
+  }
+});
+
+// Delete queue item
+router.delete('/:id', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const queueItem = await prisma.queue.delete({
+      where: { id }
+    });
+    io.emit('queue-updated', { message: `Token ${queueItem.tokenNumber} removed from queue` });
+    res.json({ message: 'Queue item deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete queue item' });
   }
 });
 

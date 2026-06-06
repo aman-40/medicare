@@ -6,7 +6,7 @@ import { authenticate, authorizeRole } from '../middleware/authMiddleware';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Register a new user
+// Register a new staff user (Admin only, or first setup)
 router.post('/register', async (req, res) => {
   try {
     const { email, password, name, role } = req.body;
@@ -16,20 +16,12 @@ router.post('/register', async (req, res) => {
     }
 
     const hashedPassword = await hashPassword(password);
-    const isCustomer = !role || role === 'CUSTOMER';
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
-        role: role || 'CUSTOMER',
-        ...(isCustomer && {
-          patient: {
-            create: {
-              address: ''
-            }
-          }
-        })
+        role: role || 'RECEPTIONIST',
       }
     });
 
@@ -40,7 +32,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login
+// Staff Login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -61,9 +53,16 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Example of a protected route requiring Admin role
-router.get('/admin-only', authenticate, authorizeRole('ADMIN'), (req, res) => {
-  res.json({ message: 'Welcome to the admin dashboard!' });
+router.get('/me', authenticate, async (req, res) => {
+  try {
+    // @ts-ignore
+    const userId = req.user.id;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ id: user.id, email: user.email, name: user.name, role: user.role });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 export default router;

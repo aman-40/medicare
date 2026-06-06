@@ -23,31 +23,6 @@ export default function Navigation() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1">
-            <Link to="/">
-              <Button variant="ghost" className="text-foreground hover:text-primary">
-                Home
-              </Button>
-            </Link>
-            <Link to="/medicines">
-              <Button variant="ghost" className="text-foreground hover:text-primary">
-                Medicines
-              </Button>
-            </Link>
-            <Link to="/appointments">
-              <Button variant="ghost" className="text-foreground hover:text-primary">
-                Eye Checkup
-              </Button>
-            </Link>
-            <Link to="/optical-store">
-              <Button variant="ghost" className="text-foreground hover:text-primary">
-                Optical Store
-              </Button>
-            </Link>
-            <Link to="/patient-dashboard">
-              <Button variant="ghost" className="text-foreground hover:text-primary">
-                My Account
-              </Button>
-            </Link>
           </div>
 
           {/* Contact Info & Auth */}
@@ -55,7 +30,7 @@ export default function Navigation() {
             <div className="flex items-center gap-4 text-sm text-muted-foreground border-r border-border pr-4">
               <div className="flex items-center gap-1">
                 <Phone className="w-4 h-4" />
-                <span>+1 234 567 8900</span>
+                <span>+91 98765 43210</span>
               </div>
               <div className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
@@ -63,12 +38,7 @@ export default function Navigation() {
               </div>
             </div>
             <Link to="/login">
-              <Button variant="ghost">Login</Button>
-            </Link>
-            <Link to="/register">
-              <Button className="bg-[var(--healthcare-blue)] hover:bg-[var(--healthcare-cyan)]">
-                Register
-              </Button>
+              <Button variant="ghost">Staff Login</Button>
             </Link>
           </div>
 
@@ -85,40 +55,10 @@ export default function Navigation() {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-border">
             <div className="flex flex-col gap-2">
-              <Link to="/" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">
-                  Home
-                </Button>
-              </Link>
-              <Link to="/medicines" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">
-                  Medicines
-                </Button>
-              </Link>
-              <Link to="/appointments" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">
-                  Eye Checkup
-                </Button>
-              </Link>
-              <Link to="/optical-store" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">
-                  Optical Store
-                </Button>
-              </Link>
-              <Link to="/patient-dashboard" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">
-                  My Account
-                </Button>
-              </Link>
-              <div className="border-t border-border pt-2 mt-2 flex gap-2">
+              <div className="pt-2 flex gap-2">
                 <Link to="/login" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant="outline" className="w-full">
-                    Login
-                  </Button>
-                </Link>
-                <Link to="/register" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full bg-[var(--healthcare-blue)]">
-                    Register
+                    Staff Login
                   </Button>
                 </Link>
               </div>

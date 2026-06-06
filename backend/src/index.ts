@@ -16,16 +16,12 @@ export const io = new Server(httpServer, {
 });
 
 import authRoutes from './routes/authRoutes';
-import medicinesRoutes from './routes/medicinesRoutes';
 import patientRoutes from './routes/patientRoutes';
-import appointmentRoutes from './routes/appointmentRoutes';
 import queueRoutes from './routes/queueRoutes';
-import adminRoutes from './routes/adminRoutes';
 import clinicRoutes from './routes/clinicRoutes';
-import storeRoutes from './routes/storeRoutes';
 import billingRoutes from './routes/billingRoutes';
-import paymentRoutes from './routes/paymentRoutes';
 import inventoryRoutes from './routes/inventoryRoutes';
+import staffRoutes from './routes/staffRoutes';
 
 app.use(cors());
 app.use(express.json());
@@ -34,16 +30,12 @@ app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
 // API Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/medicines', medicinesRoutes);
 app.use('/api/patients', patientRoutes);
-app.use('/api/appointments', appointmentRoutes);
 app.use('/api/queue', queueRoutes);
-app.use('/api/admin', adminRoutes);
 app.use('/api/clinic', clinicRoutes);
-app.use('/api/store', storeRoutes);
 app.use('/api/billing', billingRoutes);
-app.use('/api/payments', paymentRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/staff', staffRoutes);
 
 // Basic Route
 app.get('/api/health', (req, res) => {

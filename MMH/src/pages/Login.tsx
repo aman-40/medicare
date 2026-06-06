@@ -32,13 +32,10 @@ export default function Login() {
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
         
-        // Route dynamically based on their role
         const role = response.data.user.role;
         if (role === 'ADMIN') navigate('/admin');
-        else if (role === 'DOCTOR') navigate('/doctor');
-        else if (role === 'PHARMACIST') navigate('/pharmacist');
-        else if (role === 'RECEPTIONIST') navigate('/receptionist');
-        else navigate('/patient-dashboard');
+        else if (role === 'DOCTOR' || role === 'RECEPTIONIST') navigate('/admin/queue');
+        else navigate('/admin/optical-store');
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid email or password.');
@@ -54,8 +51,8 @@ export default function Login() {
           <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[var(--healthcare-blue)] to-[var(--healthcare-teal)] flex items-center justify-center mx-auto mb-4">
             <span className="text-white font-bold text-2xl">V</span>
           </div>
-          <CardTitle className="text-2xl">Welcome Back</CardTitle>
-          <CardDescription>Sign in to your VisionCare account</CardDescription>
+          <CardTitle className="text-2xl">Staff Login</CardTitle>
+          <CardDescription>Sign in to your VisionCare admin account</CardDescription>
         </CardHeader>
         <CardContent>
           {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded text-sm">{error}</div>}
@@ -69,28 +66,13 @@ export default function Login() {
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" value={formData.password} onChange={handleChange} required placeholder="••••••••" autoComplete="current-password" />
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="rounded" />
-                <span>Remember me</span>
-              </label>
-              <a href="#" className="text-[var(--healthcare-blue)] hover:underline">
-                Forgot password?
-              </a>
-            </div>
-            <Button type="submit" disabled={loading} className="w-full bg-[var(--healthcare-blue)] hover:bg-[var(--healthcare-cyan)]">
+            <Button type="submit" disabled={loading} className="w-full bg-[var(--healthcare-blue)] hover:bg-[var(--healthcare-cyan)] mt-4">
               {loading ? 'Signing In...' : 'Sign In'}
             </Button>
           </form>
 
-          <Separator className="my-4" />
+          <Separator className="my-6" />
           <div className="text-center text-sm space-y-4">
-            <div>
-              Don't have an account?{" "}
-              <Link to="/register" className="text-[var(--healthcare-blue)] hover:underline font-semibold">
-                Sign up
-              </Link>
-            </div>
             <Link to="/" className="block">
               <Button variant="ghost" className="w-full">
                 Back to Home

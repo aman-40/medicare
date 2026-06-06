@@ -1,55 +1,40 @@
 import { createBrowserRouter } from "react-router";
 import LandingPage from "../pages/LandingPage";
-import PatientDashboard from "../pages/PatientDashboard";
-import EyeCheckupBooking from "../pages/EyeCheckupBooking";
-import LiveQueue from "../pages/LiveQueue";
-import DoctorDashboard from "../pages/DoctorDashboard";
-import OpticalStore from "../pages/OpticalStore";
-import ProductDetail from "../pages/ProductDetail";
-import PharmacyStore from "../pages/PharmacyStore";
-import AdminDashboard from "../pages/AdminDashboard";
-import OrderTracking from "../pages/OrderTracking";
 import Login from "../pages/Login";
-import Register from "../pages/Register";
-import PharmacistDashboard from "../pages/PharmacistDashboard";
-import ReceptionistDashboard from "../pages/ReceptionistDashboard";
-import InventoryLayout from "../pages/inventory/InventoryLayout";
-import Dashboard from "../pages/inventory/Dashboard";
-import Medicines from "../pages/inventory/Medicines";
-import Purchases from "../pages/inventory/Purchases";
-import ExpiryAlerts from "../pages/inventory/Expiry";
-import Suppliers from "../pages/inventory/Suppliers";
-import Frames from "../pages/inventory/Frames";
-import Lenses from "../pages/inventory/Lenses";
-import Logs from "../pages/inventory/Logs";
+
+// Admin / Internal Layout
+import InternalLayout from "../layouts/InternalLayout";
+import Dashboard from "../pages/internal/Dashboard";
+import PatientRegistration from "../pages/internal/PatientRegistration";
+import PatientRecords from "../pages/internal/PatientRecords";
+import QueueManagement from "../pages/internal/QueueManagement";
+import EyeExamination from "../pages/internal/EyeExamination";
+import OpticalStore from "../pages/internal/OpticalStore";
+import OpticalOrders from "../pages/internal/OpticalOrders";
+import MedicalInventory from "../pages/internal/MedicalInventory";
+import Billing from "../pages/internal/Billing";
+import StaffManagement from "../pages/internal/StaffManagement";
 
 export const router = createBrowserRouter([
+  // Public Routes
   { path: "/", Component: LandingPage },
   { path: "/login", Component: Login },
-  { path: "/register", Component: Register },
-  { path: "/patient-dashboard", Component: PatientDashboard },
-  { path: "/appointments", Component: EyeCheckupBooking },
-  { path: "/queue", Component: LiveQueue },
-  { path: "/doctor", Component: DoctorDashboard },
-  { path: "/optical-store", Component: OpticalStore },
-  { path: "/optical-store/:id", Component: ProductDetail },
-  { path: "/medicines", Component: PharmacyStore },
-  { path: "/admin", Component: AdminDashboard },
+  
+  // Protected Admin Routes
   {
-    path: "/inventory",
-    Component: InventoryLayout,
+    path: "/admin",
+    Component: InternalLayout,
     children: [
       { path: "", Component: Dashboard },
-      { path: "medicines", Component: Medicines },
-      { path: "purchases", Component: Purchases },
-      { path: "expiry", Component: ExpiryAlerts },
-      { path: "suppliers", Component: Suppliers },
-      { path: "frames", Component: Frames },
-      { path: "lenses", Component: Lenses },
-      { path: "logs", Component: Logs },
+      { path: "patients/register", Component: PatientRegistration },
+      { path: "patients/records", Component: PatientRecords },
+      { path: "queue", Component: QueueManagement },
+      { path: "eye-exams", Component: EyeExamination },
+      { path: "optical-store", Component: OpticalStore },
+      { path: "optical-orders", Component: OpticalOrders },
+      { path: "inventory", Component: MedicalInventory },
+      { path: "billing", Component: Billing },
+      { path: "staff", Component: StaffManagement },
     ]
-  },
-  { path: "/track-order/:id", Component: OrderTracking },
-  { path: "/pharmacist", Component: PharmacistDashboard },
-  { path: "/receptionist", Component: ReceptionistDashboard }
+  }
 ]);

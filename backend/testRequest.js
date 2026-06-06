@@ -1,30 +1,14 @@
-const http = require('http');
+const axios = require('axios');
 
-const options = {
-  hostname: 'localhost',
-  port: 5000,
-  path: '/api/appointments',
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer test' // dummy token to see what it returns
+async function test() {
+  try {
+    const res = await axios.post('http://localhost:5000/api/auth/login', {
+      email: 'admin@visioncare.com',
+      password: 'admin123'
+    });
+    console.log("Success:", res.data);
+  } catch (err) {
+    console.error("Error:", err.response ? err.response.data : err.message);
   }
-};
-
-const req = http.request(options, (res) => {
-  let data = '';
-  res.on('data', (chunk) => {
-    data += chunk;
-  });
-  res.on('end', () => {
-    console.log('Status Code:', res.statusCode);
-    console.log('Response Body:', data);
-  });
-});
-
-req.on('error', (e) => {
-  console.error(`Problem with request: ${e.message}`);
-});
-
-req.write(JSON.stringify({ doctorId: "test", date: new Date().toISOString() }));
-req.end();
+}
+test();
