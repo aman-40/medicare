@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  DOCTOR
+  RECEPTIONIST
+  PHARMACIST
+  CUSTOMER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(CUSTOMER)
+  name      String
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient       Patient?
+  doctor        Doctor?
+  notifications Notification[]
+}
+
+model Patient {
+  id      String  @id @default(cuid())
+  userId  String  @unique
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  age     Int?
+  gender  String?
+  address String?
+
+  appointments Appointment[]
+  eyeReports   EyeReport[]
+  glassOrders  GlassOrder[]
+  invoices     Invoice[]
+}
+
+model Doctor {
+  id             String  @id @default(cuid())
+  userId         String  @unique
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialization String
+  availability   String?
+
+  appointments Appointment[]
+  eyeReports   EyeReport[]
+}
+
+// =======================
+// INVENTORY MODELS
+// =======================
+
+model Medicine {
+  id            String   @id @default(cuid())
+  name          String
+  company       String
+  category      String
+  batchNo       String
+  purchasePrice Float
+  sellingPrice  Float
+  stock         Int
+  expiryDate    DateTime
+  supplierId    String
+  supplier      Supplier @relation(fields: [supplierId], references: [id])
+  
+  createdAt     DateTime @default(now())
+}
+
+model Supplier {
+  id      String @id @default(cuid())
+  name    String
+  phone   String
+  email   String?
+  address String?
+
+  medicines Medicine[]
+}
+
+model Purchase {
+  id          String @id @default(cuid())
+  invoiceNo   String
+  supplierId  String
+  totalAmount Float
+  createdAt   DateTime @default(now())
+}
+
+model InventoryLog {
+  id          String @id @default(cuid())
+  productType String
+  productId   String
+  action      String
+  quantity    Int
+  remarks     String?
+  createdAt   DateTime @default(now())
+}
+
+model Frame {
+  id           String  @id @default(cuid())
+  name         String
+  brand        String
+  modelNumber  String?
+  frameType    String? // Full Rim, Half Rim, Rimless
+  material     String? // Metal, Plastic, Titanium
+  gender       String? // Men, Women, Kids
+  color        String?
+  stock        Int     @default(0)
+  purchasePrice Float  @default(0)
+  sellingPrice  Float  @default(0)
+  imageUrl     String?
+
+  glassOrders GlassOrder[]
+}
+
+model Lens {
+  id           String @id @default(cuid())
+  name         String
+  type         String // Single Vision, Progressive, etc.
+  material     String?
+  stock        Int    @default(0)
+  purchaseCost Float  @default(0)
+  sellingPrice Float  @default(0)
+
+  glassOrders GlassOrder[]
+}
+
+// =======================
+// CLINIC & BILLING
+// =======================
+
+model Appointment {
+  id        String   @id @default(cuid())
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  doctorId  String
+  doctor    Doctor   @relation(fields: [doctorId], references: [id])
+  date      DateTime
+  status    String   @default("Scheduled")
+
+  queue Queue?
+}
+
+model Queue {
+  id            String      @id @default(cuid())
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  tokenNumber   Int
+  status        String      @default("Waiting")
+  createdAt     DateTime    @default(now())
+}
+
+model EyeReport {
+  id        String  @id @default(cuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
+  doctorId  String
+  doctor    Doctor  @relation(fields: [doctorId], references: [id])
+
+  leftEyePower    String
+  rightEyePower   String
+  remarks         String?
+  prescriptionUrl String?
+
+  createdAt DateTime @default(now())
+}
+
+model GlassOrder {
+  id        String  @id @default(cuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
+  frameId   String
+  frame     Frame   @relation(fields: [frameId], references: [id])
+  lensId    String
+  lens      Lens    @relation(fields: [lensId], references: [id])
+
+  status      String @default("Pending")
+  totalAmount Float
+
+  createdAt DateTime @default(now())
+}
+
+model Sale {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+  productId   String
+  productType String
+  quantity    Int
+  unitPrice   Float
+  total       Float
+}
+
+model Invoice {
+  id          String  @id @default(cuid())
+  patientId   String
+  patient     Patient @relation(fields: [patientId], references: [id])
+  invoiceNo   String  @unique
+  gst         Float
+  totalAmount Float
+  status      String  @default("Unpaid")
+
+  sales     Sale[]
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id      String  @id @default(cuid())
+  userId  String
+  user    User    @relation(fields: [userId], references: [id])
+  type    String
+  message String
+  isRead  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
