@@ -1,14 +1,29 @@
-const axios = require('axios');
+const https = require('https');
 
-async function test() {
-  try {
-    const res = await axios.post('http://localhost:5000/api/auth/login', {
-      email: 'admin@visioncare.com',
-      password: 'admin123'
-    });
-    console.log("Success:", res.data);
-  } catch (err) {
-    console.error("Error:", err.response ? err.response.data : err.message);
+const data = JSON.stringify({
+  email: 'admin@visioncare.com',
+  password: 'admin123',
+  name: 'Admin User',
+  role: 'ADMIN'
+});
+
+const options = {
+  hostname: 'medicare-production-5b66.up.railway.app',
+  port: 443,
+  path: '/api/auth/register',
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Content-Length': data.length
   }
-}
-test();
+};
+
+const req = https.request(options, res => {
+  let body = '';
+  res.on('data', d => { body += d; });
+  res.on('end', () => { console.log('Response:', res.statusCode, body); });
+});
+
+req.on('error', error => { console.error(error); });
+req.write(data);
+req.end();
