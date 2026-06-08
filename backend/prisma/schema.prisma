@@ -113,14 +113,18 @@ model GlassOrder {
 model Medicine {
   id            String   @id @default(cuid())
   name          String
+  brandName     String?
+  genericName   String?
   company       String
   batchNo       String
   purchasePrice Float
   sellingPrice  Float
+  gstPercent    Float    @default(0)
   stock         Int
   expiryDate    DateTime
   supplierId    String
   supplier      Supplier @relation(fields: [supplierId], references: [id])
+  invoiceItems  InvoiceItem[]
   
   createdAt     DateTime @default(now())
 }
@@ -141,8 +145,11 @@ model Invoice {
   patientId   String?
   patient     Patient? @relation(fields: [patientId], references: [id])
   patientName String?
+  mobileNumber String?
   subtotal    Float    @default(0)
   gstAmount   Float    @default(0)
+  discount    Float    @default(0)
+  grandTotal  Float    @default(0)
   totalAmount Float
   createdAt   DateTime @default(now())
 
@@ -153,8 +160,12 @@ model InvoiceItem {
   id          String  @id @default(cuid())
   invoiceId   String
   invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  medicineId  String?
+  medicine    Medicine? @relation(fields: [medicineId], references: [id])
   productName String
   quantity    Int
   rate        Float
+  gst         Float   @default(0)
   amount      Float
+  total       Float   @default(0)
 }

@@ -5,6 +5,33 @@ import { authenticate, authorizeRole } from '../middleware/authMiddleware';
 const router = Router();
 const prisma = new PrismaClient();
 
+// Search medicines by name, brandName, or genericName (autocomplete)
+router.get('/search', authenticate, async (req, res) => {
+  try {
+    const q = req.query.q as string;
+    if (!q) {
+      return res.json([]);
+    }
+
+    const medicines = await prisma.medicine.findMany({
+      where: {
+        stock: { gt: 0 },
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { brandName: { contains: q, mode: 'insensitive' } },
+          { genericName: { contains: q, mode: 'insensitive' } }
+        ]
+      },
+      take: 20
+    });
+
+    res.json(medicines);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to search medicines' });
+  }
+});
+
 // Get all medicines
 router.get('/', async (req, res) => {
   try {
@@ -20,12 +47,11 @@ router.get('/', async (req, res) => {
 // Add a new medicine (Admin Only)
 router.post('/', authenticate, authorizeRole('ADMIN'), async (req, res) => {
   try {
-    const { name, company, category, batchNo, purchasePrice, sellingPrice, stock, expiryDate, supplierId } = req.body;
+    const { name, company, batchNo, purchasePrice, sellingPrice, stock, expiryDate, supplierId } = req.body;
     const medicine = await prisma.medicine.create({
       data: { 
         name, 
         company, 
-        category, 
         batchNo, 
         purchasePrice: Number(purchasePrice), 
         sellingPrice: Number(sellingPrice), 

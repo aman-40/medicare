@@ -22,6 +22,8 @@ import clinicRoutes from './routes/clinicRoutes';
 import billingRoutes from './routes/billingRoutes';
 import inventoryRoutes from './routes/inventoryRoutes';
 import staffRoutes from './routes/staffRoutes';
+import medicinesRoutes from './routes/medicinesRoutes';
+import invoiceRoutes from './routes/invoiceRoutes';
 
 app.use(cors());
 app.use(express.json());
@@ -36,6 +38,8 @@ app.use('/api/clinic', clinicRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/medicines', medicinesRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 // Basic Route
 app.get('/api/health', (req, res) => {
