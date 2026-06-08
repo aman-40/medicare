@@ -53,9 +53,9 @@ router.get('/lenses', async (req, res) => {
 // Add a new Lens (Admin Only)
 router.post('/lenses', authenticate, authorizeRole('ADMIN'), async (req, res) => {
   try {
-    const { name, type, material, purchaseCost, sellingPrice } = req.body;
+    const { name, type, brand, material, purchaseCost, sellingPrice } = req.body;
     const lens = await prisma.lens.create({
-      data: { name, type, material, purchaseCost: Number(purchaseCost), sellingPrice: Number(sellingPrice) }
+      data: { name, type, brand, material, purchasePrice: Number(purchaseCost), sellingPrice: Number(sellingPrice) }
     });
     res.status(201).json(lens);
   } catch (error) {

@@ -10,6 +10,8 @@ async function main() {
     await prisma.patient.create({
       data: {
         userId: user.id,
+        name: user.name,
+        patientCode: `PT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         address: ''
       }
     });
