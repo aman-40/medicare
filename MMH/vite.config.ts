@@ -32,7 +32,24 @@ export default defineConfig({
         short_name: 'Manoj Medical',
         description: 'Complete Eye Care & Medical Solutions',
         theme_color: '#0f766e',
-        icons: []
+        icons: [
+          {
+            src: '/favicon.svg',
+            sizes: '192x192',
+            type: 'image/svg+xml'
+          },
+          {
+            src: '/favicon.svg',
+            sizes: '512x512',
+            type: 'image/svg+xml'
+          },
+          {
+            src: '/favicon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
+          }
+        ]
       }
     })
   ],
