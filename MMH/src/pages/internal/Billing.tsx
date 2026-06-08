@@ -4,7 +4,8 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
-import { Receipt, Plus, Trash2, Printer, Search, AlertCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../components/ui/dialog";
+import { Receipt, Plus, Trash2, Printer, Search, AlertCircle, Download } from "lucide-react";
 import api from "../../api/axios";
 
 export default function Billing() {
@@ -19,8 +20,12 @@ export default function Billing() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [discount, setDiscount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
 
   const [printData, setPrintData] = useState<any>(null);
+  
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportDays, setExportDays] = useState("7");
   
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -134,6 +139,7 @@ export default function Billing() {
         patientName: patientName.trim(),
         mobileNumber: mobileNumber.trim(),
         discount,
+        paymentMethod,
         items: items.map(i => ({
           medicineId: i.medicineId,
           productName: i.productName,
@@ -150,6 +156,7 @@ export default function Billing() {
       setPatientName("");
       setMobileNumber("");
       setDiscount(0);
+      setPaymentMethod("CASH");
       fetchInvoices();
       
       // Auto trigger print for the new invoice
@@ -169,6 +176,48 @@ export default function Billing() {
     }, 100);
   };
 
+  const handleExport = () => {
+    const days = parseInt(exportDays);
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    const filtered = invoices.filter(inv => {
+      if (exportDays === "ALL") return true;
+      return new Date(inv.createdAt) >= cutoffDate;
+    });
+
+    if (filtered.length === 0) {
+      alert("No invoices found for the selected time period.");
+      return;
+    }
+
+    let csv = "Invoice No,Date,Patient,Payment Method,Total Amount\n";
+    let grandTotal = 0;
+
+    filtered.forEach(inv => {
+      const date = new Date(inv.createdAt).toLocaleDateString();
+      const patient = inv.patientName || inv.patient?.name || 'Walk-in';
+      const method = inv.paymentMethod || 'CASH';
+      const total = inv.grandTotal || inv.totalAmount;
+      grandTotal += total;
+      
+      csv += `${inv.invoiceNo},${date},${patient},${method},${total.toFixed(2)}\n`;
+    });
+
+    csv += `\n,,,GRAND TOTAL,${grandTotal.toFixed(2)}\n`;
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `Invoice_History_Past_${exportDays}_Days.csv`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setExportOpen(false);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center print:hidden">
@@ -176,14 +225,20 @@ export default function Billing() {
           <Receipt className="w-8 h-8 mr-3 text-blue-600" />
           Pharmacy Billing
         </h1>
-        <Button variant="outline" onClick={() => {
-            setItems([]);
-            setPatientName("");
-            setMobileNumber("");
-            setDiscount(0);
-        }}>
-          New Bill
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => setExportOpen(true)}>
+            <Download className="w-4 h-4 mr-2" />
+            Export History
+          </Button>
+          <Button variant="outline" onClick={() => {
+              setItems([]);
+              setPatientName("");
+              setMobileNumber("");
+              setDiscount(0);
+          }}>
+            New Bill
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 print:hidden">
@@ -327,6 +382,17 @@ export default function Billing() {
                       className="w-24 text-right h-8"
                     />
                   </div>
+                  <div className="flex justify-between text-slate-600 items-center pt-2">
+                    <span>Payment Method</span>
+                    <select 
+                      value={paymentMethod} 
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="border-slate-200 rounded-md text-sm p-1.5 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="CASH">CASH</option>
+                      <option value="ONLINE">ONLINE</option>
+                    </select>
+                  </div>
                   <div className="flex justify-between border-t border-slate-200 pt-3 text-xl font-bold text-slate-800">
                     <span>Grand Total</span>
                     <span className="text-blue-600">₹{calculateGrandTotal().toFixed(2)}</span>
@@ -385,10 +451,10 @@ export default function Billing() {
         {printData && (
           <div className="p-2 border-b-2 border-dashed border-black pb-4 mb-4">
             <div className="text-center mb-4">
-              <h1 className="text-xl font-bold uppercase mb-1">New Manoj Medical Hall</h1>
-              <p className="text-xs">Your Shop Address Here</p>
-              <p className="text-xs">City, State, ZIP</p>
-              <p className="text-xs">Ph: +91 9999999999</p>
+              <h1 className="text-xl font-bold uppercase mb-1">Manoj Medical Hall</h1>
+              <p className="text-xs">Makhdumpur Dih, Makhdumpur</p>
+              <p className="text-xs">Jehanabad, Bihar 804422</p>
+              <p className="text-xs">Ph: +91 8340508210</p>
             </div>
             
             <div className="border-t border-b border-dashed border-black py-2 mb-4 space-y-1">
@@ -421,6 +487,7 @@ export default function Billing() {
               <p>Subtotal: {printData.subtotal.toFixed(2)}</p>
               <p>GST: {printData.gstAmount.toFixed(2)}</p>
               {printData.discount > 0 && <p>Discount: -{printData.discount.toFixed(2)}</p>}
+              <p>Payment: {printData.paymentMethod || 'CASH'}</p>
               <p className="text-lg font-bold mt-2 pt-2 border-t border-black">
                 TOTAL: ₹{(printData.grandTotal || printData.totalAmount).toFixed(2)}
               </p>
@@ -433,6 +500,35 @@ export default function Billing() {
           </div>
         )}
       </div>
+
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export Invoice History</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Select Time Period</Label>
+              <select 
+                value={exportDays} 
+                onChange={(e) => setExportDays(e.target.value)}
+                className="w-full border-slate-200 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="1">Past 24 Hours</option>
+                <option value="7">Past 7 Days</option>
+                <option value="30">Past 30 Days</option>
+                <option value="ALL">All Time</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportOpen(false)}>Cancel</Button>
+            <Button onClick={handleExport} className="bg-emerald-600 hover:bg-emerald-700">
+              <Download className="w-4 h-4 mr-2" /> Download CSV
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Badge } from "../../components/ui/badge";
-import { History, Printer } from "lucide-react";
+import { Input } from "../../components/ui/input";
+import { History, Printer, Search } from "lucide-react";
 import api from "../../api/axios";
 
 export default function PatientRecords() {
@@ -13,6 +14,7 @@ export default function PatientRecords() {
   const [selectedPatientHistory, setSelectedPatientHistory] = useState<any>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // For Printing
   const [printReportData, setPrintReportData] = useState<any>(null);
@@ -58,8 +60,18 @@ export default function PatientRecords() {
       </div>
 
       <Card className="border-2 border-slate-200 print:hidden">
-        <CardHeader className="bg-slate-50 border-b border-slate-200 rounded-t-xl">
+        <CardHeader className="bg-slate-50 border-b border-slate-200 rounded-t-xl flex flex-row items-center justify-between">
           <CardTitle className="text-xl">All Registered Patients</CardTitle>
+          <div className="relative w-72">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+            <Input
+              type="text"
+              placeholder="Search by name, phone or code..."
+              className="pl-9 h-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -73,10 +85,20 @@ export default function PatientRecords() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {patients.length === 0 ? (
+              {patients.filter(p => {
+                const q = searchTerm.toLowerCase();
+                return p.name?.toLowerCase().includes(q) || 
+                       p.phone?.toLowerCase().includes(q) || 
+                       p.patientCode?.toLowerCase().includes(q);
+              }).length === 0 ? (
                 <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No patients found</TableCell></TableRow>
               ) : (
-                patients.map((patient) => (
+                patients.filter(p => {
+                  const q = searchTerm.toLowerCase();
+                  return p.name?.toLowerCase().includes(q) || 
+                         p.phone?.toLowerCase().includes(q) || 
+                         p.patientCode?.toLowerCase().includes(q);
+                }).map((patient) => (
                   <TableRow key={patient.id}>
                     <TableCell className="font-medium text-slate-900">{patient.patientCode}</TableCell>
                     <TableCell>{patient.name}</TableCell>
@@ -160,7 +182,7 @@ export default function PatientRecords() {
       {printReportData && selectedPatient && (
         <div className="hidden print:block absolute top-0 left-0 w-[210mm] h-[297mm] bg-white text-black p-4 text-xs font-sans">
           <div className="text-center mb-6 border-b-2 border-black pb-2">
-            <h1 className="text-xl font-bold uppercase mb-1">VisionCare Eye Medical Report</h1>
+            <h1 className="text-xl font-bold uppercase mb-1">Manoj Medical Hall Eye Medical Report</h1>
             <p className="text-sm">Exceptional Student / Patient Evaluation Form</p>
           </div>
 

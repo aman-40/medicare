@@ -57,7 +57,7 @@ export default function InternalLayout() {
       {/* Sidebar - hidden when printing */}
       <aside className="w-64 bg-slate-900 text-white flex flex-col print:hidden">
         <div className="p-4 text-xl font-bold border-b border-slate-800">
-          VisionCare Admin
+          MMH Admin
         </div>
         <nav className="flex-1 overflow-y-auto py-4">
           <ul className="space-y-1 px-2">

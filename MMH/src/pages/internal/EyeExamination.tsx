@@ -323,7 +323,7 @@ export default function EyeExamination() {
       {selectedPatientId && (
         <div className="hidden print:block absolute top-0 left-0 w-[210mm] h-[297mm] bg-white text-black p-4 text-xs font-sans">
           <div className="text-center mb-6 border-b-2 border-black pb-2">
-            <h1 className="text-xl font-bold uppercase mb-1">VisionCare Eye Medical Report</h1>
+            <h1 className="text-xl font-bold uppercase mb-1">Manoj Medical Hall Eye Medical Report</h1>
             <p className="text-sm">Exceptional Student / Patient Evaluation Form</p>
           </div>
 

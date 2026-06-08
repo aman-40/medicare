@@ -49,10 +49,10 @@ export default function Login() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[var(--healthcare-blue)] to-[var(--healthcare-teal)] flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-2xl">V</span>
+            <span className="text-white font-bold text-2xl">M</span>
           </div>
           <CardTitle className="text-2xl">Staff Login</CardTitle>
-          <CardDescription>Sign in to your VisionCare admin account</CardDescription>
+          <CardDescription>Sign in to your MMH admin account</CardDescription>
         </CardHeader>
         <CardContent>
           {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded text-sm">{error}</div>}

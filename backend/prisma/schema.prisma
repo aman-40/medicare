@@ -188,6 +188,7 @@ model Invoice {
   discount    Float    @default(0)
   grandTotal  Float    @default(0)
   totalAmount Float
+  paymentMethod String @default("CASH")
   status      String   @default("Pending")
   createdAt   DateTime @default(now())
 

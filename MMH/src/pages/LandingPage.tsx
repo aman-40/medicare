@@ -270,6 +270,37 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Owner & History Section */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="order-2 lg:order-1 space-y-6">
+              <Badge className="bg-[var(--healthcare-blue)] text-white">Our Legacy</Badge>
+              <h2 className="text-3xl md:text-4xl font-bold">A Pillar of Health in Makhdumpur</h2>
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                Manoj Medical Hall has been proudly serving the community of Makhdumpur with dignity, integrity, and unwavering dedication. Established with a vision to provide accessible and high-quality healthcare, the shop has grown from a humble pharmacy to a comprehensive medical and optical center.
+              </p>
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                Our foundation is built on trust and a deep commitment to the well-being of our patients. We believe in treating every individual with respect and care, ensuring that they receive genuine medicines, expert consultations, and premium optical services under one roof. Our legacy in Makhdumpur is a testament to our steadfast integrity and the strong bonds we've formed with generations of families.
+              </p>
+              <div className="pt-4 border-t border-slate-100">
+                <p className="font-semibold text-lg text-slate-800">Founder & Owner</p>
+                <p className="text-muted-foreground">Manoj Medical Hall</p>
+              </div>
+            </div>
+            <div className="order-1 lg:order-2">
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl aspect-[4/5] md:aspect-square lg:aspect-[4/5] bg-slate-100 flex items-center justify-center border-4 border-white">
+                <img 
+                  src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw4fHxkb2N0b3IlMjBwb3J0cmFpdHxlbnwxfHx8fDE3ODA3NjEwMTF8MA&ixlib=rb-4.1.0&q=80&w=1080" 
+                  alt="Owner of Manoj Medical Hall" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Testimonials */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

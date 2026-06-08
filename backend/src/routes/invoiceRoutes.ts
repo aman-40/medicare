@@ -36,7 +36,7 @@ router.get('/:id', authenticate, async (req, res) => {
 // Generate an Invoice
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { patientName, mobileNumber, discount = 0, items } = req.body;
+    const { patientName, mobileNumber, discount = 0, items, paymentMethod = 'CASH' } = req.body;
     // items: Array of { medicineId, quantity, rate, gst, total }
 
     if (!items || items.length === 0) {
@@ -89,6 +89,7 @@ router.post('/', authenticate, async (req, res) => {
           discount: Number(discount),
           grandTotal,
           totalAmount: grandTotal, // for backwards compatibility with schema
+          paymentMethod,
           items: {
             create: items.map((item: any) => ({
               medicineId: item.medicineId,
