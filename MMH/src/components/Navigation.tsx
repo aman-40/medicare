@@ -13,10 +13,10 @@ export default function Navigation() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--healthcare-blue)] to-[var(--healthcare-teal)] flex items-center justify-center">
-              <span className="text-white font-bold text-xl">V</span>
+              <span className="text-white font-bold text-xl">M</span>
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-lg text-foreground">New Manoj Medical Hall</span>
+              <span className="font-bold text-lg text-foreground">Manoj Medical Hall</span>
               <span className="text-xs text-muted-foreground -mt-1">Pharmacy & Optical</span>
             </div>
           </Link>
@@ -44,7 +44,7 @@ export default function Navigation() {
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2"
+            className="lg:hidden p-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -53,7 +53,7 @@ export default function Navigation() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-border">
+          <div className="lg:hidden py-4 border-t border-border">
             <div className="flex flex-col gap-2">
               <div className="pt-2 flex gap-2">
                 <Link to="/login" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
