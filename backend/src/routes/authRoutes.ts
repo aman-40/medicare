@@ -6,8 +6,8 @@ import { authenticate, authorizeRole } from '../middleware/authMiddleware';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Register a new staff user (Admin only, or first setup)
-router.post('/register', async (req, res) => {
+// Register a new staff user (Admin only)
+router.post('/register', authenticate, authorizeRole('ADMIN'), async (req, res) => {
   try {
     const { email, password, name, role } = req.body;
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -28,7 +28,7 @@ router.post('/register', async (req, res) => {
     const token = generateToken(user.id, user.role);
     res.status(201).json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   } catch (error) {
-    res.status(500).json({ message: 'Server error during registration', error });
+    res.status(500).json({ message: 'Server error during registration' });
   }
 });
 
@@ -49,14 +49,14 @@ router.post('/login', async (req, res) => {
     const token = generateToken(user.id, user.role);
     res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   } catch (error) {
-    res.status(500).json({ message: 'Server error during login', error });
+    res.status(500).json({ message: 'Server error during login' });
   }
 });
 
 router.get('/me', authenticate, async (req, res) => {
   try {
     // @ts-ignore
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json({ id: user.id, email: user.email, name: user.name, role: user.role });
