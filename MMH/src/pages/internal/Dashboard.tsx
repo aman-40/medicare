@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Users, ListOrdered, IndianRupee, Glasses } from "lucide-react";
+import { Users, ListOrdered, IndianRupee, Glasses, Eye } from "lucide-react";
 import { useNavigate, Link } from "react-router";
 import api from "../../api/axios";
 
@@ -10,6 +10,7 @@ export default function Dashboard() {
     todayPatients: 0,
     queueCount: 0,
     todaySales: 0,
+    todayEyeCareRevenue: 0,
     pendingOrders: 0
   });
 
@@ -36,15 +37,19 @@ export default function Dashboard() {
         
         // Mocking today's filtering on frontend for simplicity
         const today = new Date().toDateString();
-        const todayPatients = patientsRes.data.filter((p: any) => new Date(p.createdAt).toDateString() === today).length;
+        const todaysPatients = patientsRes.data.filter((p: any) => new Date(p.createdAt).toDateString() === today);
+        const todayPatientsCount = todaysPatients.length;
+        const todayEyeCareRevenue = todaysPatients.reduce((acc: number, p: any) => acc + (p.feeAmount || 0), 0);
+
         const todaySales = billingRes.data
           .filter((i: any) => new Date(i.createdAt).toDateString() === today)
           .reduce((acc: number, i: any) => acc + i.totalAmount, 0);
 
         setStats({
-          todayPatients,
+          todayPatients: todayPatientsCount,
           queueCount: queueRes.data.queueItems.length,
           todaySales,
+          todayEyeCareRevenue,
           pendingOrders: 12 // Hardcoded mock for now
         });
       } catch (error) {
@@ -58,7 +63,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-slate-800">Clinic Overview</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg border-none">
           <CardContent className="p-6 flex justify-between items-center">
             <div>
@@ -76,6 +81,16 @@ export default function Dashboard() {
               <h3 className="text-4xl font-black">{stats.queueCount}</h3>
             </div>
             <ListOrdered className="w-12 h-12 text-indigo-200 opacity-80" />
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg border-none">
+          <CardContent className="p-6 flex justify-between items-center">
+            <div>
+              <p className="text-purple-100 mb-1 font-medium">Eye Care Rev.</p>
+              <h3 className="text-4xl font-black">₹{stats.todayEyeCareRevenue.toLocaleString()}</h3>
+            </div>
+            <Eye className="w-12 h-12 text-purple-200 opacity-80" />
           </CardContent>
         </Card>
 

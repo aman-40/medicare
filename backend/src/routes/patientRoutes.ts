@@ -40,7 +40,7 @@ router.get('/:id', authenticate, async (req, res) => {
 // Create new patient
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { name, age, gender, phone, address, occupation } = req.body;
+    const { name, age, gender, phone, address, occupation, feeAmount, paymentMethod } = req.body;
     
     // Auto-generate patient code (e.g. PT-1001)
     const count = await prisma.patient.count();
@@ -54,7 +54,9 @@ router.post('/', authenticate, async (req, res) => {
         gender,
         phone,
         address,
-        occupation
+        occupation,
+        feeAmount: feeAmount ? parseFloat(feeAmount) : null,
+        paymentMethod
       }
     });
     res.status(201).json(patient);
@@ -67,7 +69,7 @@ router.post('/', authenticate, async (req, res) => {
 router.put('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, age, gender, phone, address, occupation } = req.body;
+    const { name, age, gender, phone, address, occupation, feeAmount, paymentMethod } = req.body;
     
     const patient = await prisma.patient.update({
       where: { id },
@@ -77,7 +79,9 @@ router.put('/:id', authenticate, async (req, res) => {
         gender,
         phone,
         address,
-        occupation
+        occupation,
+        feeAmount: feeAmount ? parseFloat(feeAmount) : null,
+        paymentMethod
       }
     });
     res.json(patient);

@@ -77,6 +77,67 @@ router.get('/medicines', authenticate, async (req, res) => {
   }
 });
 
+// Bulk Add Medicines
+router.post('/medicines/bulk', authenticate, async (req, res) => {
+  try {
+    const { medicines } = req.body;
+    if (!Array.isArray(medicines)) {
+      return res.status(400).json({ error: 'Payload must contain an array of medicines' });
+    }
+
+    let successCount = 0;
+    const errors = [];
+
+    for (let i = 0; i < medicines.length; i++) {
+      const med = medicines[i];
+      try {
+        if (!med.name || !med.batchNo || med.stock === undefined || med.purchasePrice === undefined || med.sellingPrice === undefined || !med.expiryDate || !med.supplierName) {
+          throw new Error('Missing required fields');
+        }
+
+        let supplier = await prisma.supplier.findFirst({
+          where: { name: med.supplierName }
+        });
+
+        if (!supplier) {
+          supplier = await prisma.supplier.create({
+            data: {
+              name: med.supplierName,
+              phone: med.supplierPhone || 'N/A'
+            }
+          });
+        }
+
+        await prisma.medicine.create({
+          data: {
+            name: med.name,
+            company: med.company || '',
+            batchNo: med.batchNo,
+            purchasePrice: parseFloat(med.purchasePrice),
+            sellingPrice: parseFloat(med.sellingPrice),
+            stock: parseInt(med.stock),
+            expiryDate: new Date(med.expiryDate),
+            supplierId: supplier.id
+          }
+        });
+        successCount++;
+      } catch (err: any) {
+        errors.push(`Row ${i + 1} (${med.name || 'Unknown'}): ${err.message}`);
+      }
+    }
+
+    res.status(201).json({ 
+      message: `Processed bulk upload.`, 
+      successCount, 
+      errorCount: errors.length,
+      errors 
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to process bulk upload' });
+  }
+});
+
 // Add New Medicine (with auto-supplier creation)
 router.post('/medicines', authenticate, async (req, res) => {
   try {

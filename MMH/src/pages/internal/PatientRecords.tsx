@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Badge } from "../../components/ui/badge";
 import { Input } from "../../components/ui/input";
-import { History, Printer, Search } from "lucide-react";
+import { History, Printer, Search, Eye } from "lucide-react";
 import api from "../../api/axios";
 
 export default function PatientRecords() {
@@ -180,144 +180,134 @@ export default function PatientRecords() {
 
       {/* --- HIDDEN PRE-FILLED PRINT TEMPLATE --- */}
       {printReportData && selectedPatient && (
-        <div className="hidden print:block absolute top-0 left-0 w-[210mm] h-[297mm] bg-white text-black p-4 text-xs font-sans">
-          <div className="text-center mb-6 border-b-2 border-black pb-2">
-            <h1 className="text-xl font-bold uppercase mb-1">Manoj Medical Hall Eye Medical Report</h1>
-            <p className="text-sm">Exceptional Student / Patient Evaluation Form</p>
+        <div className="hidden print:flex flex-col fixed inset-0 w-full h-full bg-white text-black text-sm font-sans z-[9999]">
+          
+          {/* HEADER */}
+          <div className="flex flex-col mb-4 pt-4">
+            <div className="text-right text-xs font-bold mb-1 mr-4">Mob.: 7643955517, 8340508210</div>
+            <div className="flex justify-between items-center px-4">
+              <Eye className="w-12 h-12 text-blue-900" />
+              <div className="text-center">
+                <h1 className="text-3xl font-extrabold text-blue-900 tracking-wide uppercase">PRIYANSHI EYE CARE CENTRE</h1>
+                <p className="text-sm font-bold text-blue-900 mt-1">BETTER VISION, BEAUTIFUL LIFE</p>
+                <p className="text-xs text-blue-900 mt-1">New Manoj Medical Hall, P.G. Road, Makhdumpur, Jehanabad</p>
+              </div>
+              <Eye className="w-12 h-12 text-blue-900" />
+            </div>
+            <div className="border-b-2 border-blue-900 mt-2 mx-2"></div>
+            <div className="border-b border-blue-900 mt-[2px] mx-2"></div>
           </div>
 
-          <div className="grid grid-cols-4 gap-4 mb-6 text-sm">
-            <div className="col-span-2 border-b border-black pb-1">
-              <span className="font-semibold">Student/Patient Name:</span> <span className="text-lg">{selectedPatient.name}</span>
+          {/* PATIENT INFO */}
+          <div className="px-6 py-2">
+            <div className="flex justify-between items-end mb-4 text-[15px]">
+              <div className="flex-1 flex items-end">
+                <span className="font-semibold mr-2">Patient Name:</span>
+                <span className="flex-1 border-b-[1.5px] border-dotted border-gray-500 pb-1 px-2 uppercase">{selectedPatient.name}</span>
+              </div>
+              <div className="w-48 flex items-end ml-4">
+                <span className="font-semibold mr-2">Age/Sex:</span>
+                <span className="flex-1 border-b-[1.5px] border-dotted border-gray-500 pb-1 px-2 text-center uppercase">{selectedPatient.age || '    '} / {selectedPatient.gender?.charAt(0) || '    '}</span>
+              </div>
             </div>
-            <div className="border-b border-black pb-1">
-              <span className="font-semibold">DOB:</span>
-            </div>
-            <div className="border-b border-black pb-1">
-              <span className="font-semibold">Date:</span> {new Date(printReportData.createdAt).toLocaleDateString()}
-            </div>
-            
-            <div className="col-span-2 border-b border-black pb-1">
-              <span className="font-semibold">Parent/Guardian Name:</span>
-            </div>
-            <div className="border-b border-black pb-1">
-              <span className="font-semibold">Email:</span>
-            </div>
-            <div className="border-b border-black pb-1">
-              <span className="font-semibold">Phone:</span> {selectedPatient.phone}
-            </div>
-
-            <div className="col-span-4 border-b border-black pb-1">
-              <span className="font-semibold">Address:</span> {selectedPatient.address}
-            </div>
-          </div>
-
-          <div className="font-bold text-sm bg-gray-100 p-2 mb-4 border border-black">
-            Attention: Eye Care Specialist (A licensed ophthalmologist or optometrist must address each item below).
-          </div>
-
-          <div className="space-y-4 mb-6 text-sm">
-            <div className="flex border-b border-black pb-1">
-              <span className="w-24 font-bold">Diagnosis:</span>
-              <span className="flex-1">{printReportData.reportData?.diagnosis || ''}</span>
-            </div>
-            <div className="flex border-b border-black pb-1">
-              <span className="w-24 font-bold">Etiology:</span>
-              <span className="flex-1">{printReportData.reportData?.etiology || ''}</span>
+            <div className="flex justify-between items-end mb-6 text-[15px]">
+              <div className="w-64 flex items-end">
+                <span className="font-semibold mr-2">Date:</span>
+                <span className="flex-1 border-b-[1.5px] border-dotted border-gray-500 pb-1 px-2 text-center">{new Date(printReportData.createdAt).toLocaleDateString('en-GB')}</span>
+              </div>
+              <div className="flex-1 flex items-end ml-4">
+                <span className="font-semibold mr-2">Address:</span>
+                <span className="flex-1 border-b-[1.5px] border-dotted border-gray-500 pb-1 px-2">{selectedPatient.address}</span>
+              </div>
             </div>
           </div>
 
-          <h2 className="font-bold text-lg mb-2 border-b border-black">Visual Acuity</h2>
-          <table className="w-full mb-6 border border-black text-center">
-            <thead>
-              <tr className="bg-gray-50 border-b border-black">
-                <th className="border-r border-black p-2"></th>
-                <th className="border-r border-black p-2" colSpan={2}>Distance Vision</th>
-                <th className="p-2" colSpan={2}>Near Vision</th>
-              </tr>
-              <tr className="border-b border-black text-[10px]">
-                <th className="border-r border-black p-1"></th>
-                <th className="border-r border-black p-1">Without Correction</th>
-                <th className="border-r border-black p-1">With Best Correction</th>
-                <th className="border-r border-black p-1">Without Correction</th>
-                <th className="p-1">With Best Correction</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { key: 'od', label: 'OD (Right)' },
-                { key: 'os', label: 'OS (Left)' },
-                { key: 'ou', label: 'OU (Both)' }
-              ].map(row => (
-                <tr key={row.key} className="border-b border-black h-8">
-                  <td className="border-r border-black p-2 font-bold w-24 text-left">{row.label}</td>
-                  <td className="border-r border-black">{printReportData.reportData?.visualAcuity?.distance?.[row.key]?.uncorrected || ''}</td>
-                  <td className="border-r border-black">{printReportData.reportData?.visualAcuity?.distance?.[row.key]?.corrected || ''}</td>
-                  <td className="border-r border-black">{printReportData.reportData?.visualAcuity?.near?.[row.key]?.uncorrected || ''}</td>
-                  <td>{printReportData.reportData?.visualAcuity?.near?.[row.key]?.corrected || ''}</td>
+          {/* CLINICAL OBSERVATIONS BODY */}
+          <div className="flex px-4 mt-2">
+            {/* LEFT COLUMN: V/A, Pupil, Cornea */}
+            <div className="w-1/2 flex flex-col space-y-6">
+              {/* V A */}
+              <div className="flex items-center">
+                <span className="font-bold text-lg mr-2">V A</span>
+                <span className="text-4xl font-light text-gray-400">&lt;</span>
+                <div className="flex flex-col ml-4 space-y-3 font-semibold text-base w-48">
+                  <div className="border-b border-black pb-1 uppercase">{printReportData.reportData?.va || ''}</div>
+                  <div className="border-b border-black pb-1 uppercase"></div>
+                </div>
+              </div>
+
+              {/* Pupil */}
+              <div className="flex items-center">
+                <span className="font-bold text-lg mr-2">Pupil</span>
+                <span className="text-4xl font-light text-gray-400">&lt;</span>
+                <div className="flex flex-col ml-4 space-y-3 font-semibold text-base w-48">
+                  <div className="border-b border-black pb-1 uppercase">{printReportData.reportData?.pupil || ''}</div>
+                  <div className="border-b border-black pb-1 uppercase"></div>
+                </div>
+              </div>
+
+              {/* Cornea */}
+              <div className="flex items-center">
+                <span className="font-bold text-lg mr-2">Cornea</span>
+                <span className="text-4xl font-light text-gray-400">&lt;</span>
+                <div className="flex flex-col ml-4 space-y-3 font-semibold text-base w-48">
+                  <div className="border-b border-black pb-1 uppercase">{printReportData.reportData?.cornea || ''}</div>
+                  <div className="border-b border-black pb-1 uppercase"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: C/o */}
+            <div className="w-1/2 border-l border-black pl-4">
+              <div className="flex">
+                <span className="font-bold text-lg mr-2 whitespace-nowrap">C/o -</span>
+                <div className="flex-1 flex flex-col space-y-6 mt-1">
+                  <div className="border-b border-black pb-1 font-semibold uppercase">{printReportData.reportData?.chiefComplaint || ''}</div>
+                  <div className="border-b border-black pb-1"></div>
+                  <div className="border-b border-black pb-1"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1"></div>
+
+          {/* PRESCRIPTION TABLE */}
+          <div className="w-full flex justify-center mb-8 px-6">
+            <table className="w-[85%] border-collapse border-2 border-black text-center text-sm font-semibold">
+              <thead>
+                <tr className="border-b-2 border-black">
+                  <th className="border-r-2 border-black p-2 w-24">N.V./<br/>CONSTANT<br/>VALUE</th>
+                  <th className="border-r border-black p-2 w-20">S.P.H</th>
+                  <th className="border-r border-black p-2 w-20">C.Y.L</th>
+                  <th className="border-r-2 border-black p-2 w-20">AXIS</th>
+                  <th className="border-r border-black p-2 w-20">S.P.H</th>
+                  <th className="border-r border-black p-2 w-20">C.Y.L</th>
+                  <th className="p-2 w-20">AXIS</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-6 text-sm">
-            <div className="flex border-b border-black pb-1">
-              <span className="w-32 font-semibold">Refractive Error:</span> OD (Right) &nbsp;{printReportData.reportData?.refractiveError?.od || ''}
-            </div>
-            <div className="flex border-b border-black pb-1">
-              OS (Left) &nbsp;{printReportData.reportData?.refractiveError?.os || ''}
-            </div>
-            <div className="flex border-b border-black pb-1">
-              <span className="w-32 font-semibold">Ocular Pressure:</span> OD (Right) &nbsp;{printReportData.reportData?.ocularPressure?.od || ''}
-            </div>
-            <div className="flex border-b border-black pb-1">
-              OS (Left) &nbsp;{printReportData.reportData?.ocularPressure?.os || ''}
-            </div>
-            <div className="col-span-2">
-              <span className="font-semibold mr-4">Does this student have difficulties seeing color?</span>
-              [{printReportData.reportData?.colorDifficulty ? 'X' : ' '}] Yes &nbsp;&nbsp; [{printReportData.reportData?.colorDifficulty === false ? 'X' : ' '}] No
-              <div className="mt-2 border-b border-black h-6">If yes, describe: {printReportData.reportData?.colorDescription || ''}</div>
-            </div>
-            <div className="col-span-2">
-              <span className="font-semibold mr-4">Is the student photophobic?</span>
-              [{printReportData.reportData?.photophobic ? 'X' : ' '}] Yes &nbsp;&nbsp; [{printReportData.reportData?.photophobic === false ? 'X' : ' '}] No
-            </div>
-            <div className="col-span-2 flex items-end">
-              <span className="font-semibold mr-2">Lighting conditions:</span>
-              <div className="border-b border-black flex-1 h-6">{printReportData.reportData?.lightingConditions || ''}</div>
-            </div>
+              </thead>
+              <tbody>
+                <tr className="border-b border-black h-12">
+                  <td className="border-r-2 border-black p-2 font-bold text-left pl-4">DIS.</td>
+                  <td className="border-r border-black">{printReportData.rightSph}</td>
+                  <td className="border-r border-black">{printReportData.rightCyl}</td>
+                  <td className="border-r-2 border-black">{printReportData.rightAxis}</td>
+                  <td className="border-r border-black">{printReportData.leftSph}</td>
+                  <td className="border-r border-black">{printReportData.leftCyl}</td>
+                  <td>{printReportData.leftAxis}</td>
+                </tr>
+                <tr className="h-12">
+                  <td className="border-r-2 border-black p-2 font-bold text-left pl-4">ADD</td>
+                  <td colSpan={3} className="border-r-2 border-black">{printReportData.addPower}</td>
+                  <td colSpan={3}>{printReportData.addPower}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <div className="mb-6 border border-black p-4 text-sm">
-            <p className="font-bold mb-2">Complete ONLY if Acuity cannot be measured. Check the most appropriate estimation below:</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>[{printReportData.reportData?.acuityEstimation === 'Better than 20/70' ? 'X' : ' '}] Better than 20/70</div>
-              <div>[{printReportData.reportData?.acuityEstimation === 'Legally blind 20/200 or worse' ? 'X' : ' '}] Legally blind 20/200 or worse</div>
-              <div>[{printReportData.reportData?.acuityEstimation === 'Between 20/70 and 20/200' ? 'X' : ' '}] Between 20/70 and 20/200</div>
-              <div>[{printReportData.reportData?.acuityEstimation === 'Functions at definition of blindness' ? 'X' : ' '}] Functions at the definition of blindness</div>
-            </div>
-            
-            <p className="font-bold mt-4 mb-2">For Students Who Are Otherwise Unable to be Assessed:</p>
-            <p className="mb-1">Describe the function if standard visual acuities and measures of field of vision are unattainable:</p>
-            <div className="border-b border-black h-6 mb-2">{printReportData.reportData?.unableToAssessDesc || ''}</div>
-          </div>
-
-          <h2 className="font-bold text-lg mb-2 border-b border-black">Visual Fields</h2>
-          <div className="text-sm space-y-4">
-            <div>
-              <span className="font-semibold mr-4">Does the student have a field loss?</span>
-              [{printReportData.reportData?.fieldLoss ? 'X' : ' '}] Yes &nbsp;&nbsp; [{printReportData.reportData?.fieldLoss === false ? 'X' : ' '}] No
-            </div>
-            <div className="pl-4 space-y-2">
-              <div className="flex items-end">
-                <span className="mr-2">Describe: &nbsp; Central:</span>
-                <div className="border-b border-black flex-1 h-6">{printReportData.reportData?.fieldCentral || ''}</div>
-              </div>
-              <div className="flex items-end">
-                <span className="mr-2">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Peripheral:</span>
-                <div className="border-b border-black flex-1 h-6">{printReportData.reportData?.fieldPeripheral || ''}</div>
-              </div>
-            </div>
+          {/* FOOTER */}
+          <div className="w-full text-center pb-4 pt-2">
+            <p className="font-bold text-xl text-blue-900 mb-1" style={{ fontFamily: 'Noto Sans Devanagari, sans-serif' }}>यह Slip सिर्फ Camp के लिए है।</p>
           </div>
 
         </div>

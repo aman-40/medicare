@@ -9,7 +9,7 @@ import api from "../../api/axios";
 
 export default function PatientRegistration() {
   const [formData, setFormData] = useState({
-    name: '', age: '', gender: '', phone: '', address: '', occupation: ''
+    name: '', age: '', gender: '', phone: '', address: '', occupation: '', feeAmount: '', paymentMethod: ''
   });
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
@@ -25,7 +25,7 @@ export default function PatientRegistration() {
       // Auto-add to Queue
       await api.post('/queue/generate', { patientId: newPatientId });
       
-      setFormData({ name: '', age: '', gender: '', phone: '', address: '', occupation: '' });
+      setFormData({ name: '', age: '', gender: '', phone: '', address: '', occupation: '', feeAmount: '', paymentMethod: '' });
       setSuccessMsg("Patient registered and added to queue successfully!");
       setTimeout(() => setSuccessMsg(""), 5000);
     } catch (error) {
@@ -80,13 +80,33 @@ export default function PatientRegistration() {
               <Label>Mobile Number</Label>
               <Input required value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="+1 234 567 890" />
             </div>
-            <div className="space-y-2">
-              <Label>Occupation</Label>
-              <Input value={formData.occupation} onChange={e => setFormData({...formData, occupation: e.target.value})} placeholder="Software Engineer" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Occupation</Label>
+                <Input value={formData.occupation} onChange={e => setFormData({...formData, occupation: e.target.value})} placeholder="Software Engineer" />
+              </div>
+              <div className="space-y-2">
+                <Label>Address</Label>
+                <Input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="123 Main St, City" />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Address</Label>
-              <Input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="123 Main St, City" />
+            
+            {/* Payment Info */}
+            <div className="pt-4 border-t grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Consultation Fee Amount</Label>
+                <Input type="number" value={formData.feeAmount} onChange={e => setFormData({...formData, feeAmount: e.target.value})} placeholder="500" />
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select value={formData.paymentMethod} onValueChange={v => setFormData({...formData, paymentMethod: v})}>
+                  <SelectTrigger><SelectValue placeholder="Select Method" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cash">Cash</SelectItem>
+                    <SelectItem value="Online">Online (UPI)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="pt-4 border-t">
               <Button disabled={loading} type="submit" size="lg" className="w-full bg-blue-600 hover:bg-blue-700">

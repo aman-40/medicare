@@ -3,7 +3,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
-import { PlayCircle, CheckCircle, Printer, Trash2 } from "lucide-react";
+import { PlayCircle, CheckCircle, Printer, Trash2, Eye } from "lucide-react";
 import api from "../../api/axios";
 
 export default function QueueManagement() {
@@ -172,150 +172,113 @@ export default function QueueManagement() {
         </div>
       )}
 
-      {/* 2. Advanced Eye Medical Report Template */}
+      {/* 2. Bill of Payment Template (Triggers on "Call") */}
       {printMedicalTemplateData && !printTokenData && (
-        <div className="hidden print:block absolute top-0 left-0 w-[210mm] h-[297mm] bg-white text-black p-4 text-xs font-sans">
-          <div className="text-center mb-6 border-b-2 border-black pb-2">
-            <h1 className="text-xl font-bold uppercase mb-1">VisionCare Eye Medical Report</h1>
-            <p className="text-sm">Exceptional Student / Patient Evaluation Form</p>
-          </div>
-
-          {/* Header Info */}
-          <div className="grid grid-cols-4 gap-4 mb-6 text-sm">
-            <div className="col-span-2 border-b border-black pb-1">
-              <span className="font-semibold">Student/Patient Name:</span> <span className="text-lg">{printMedicalTemplateData.patient?.name}</span>
-            </div>
-            <div className="border-b border-black pb-1">
-              <span className="font-semibold">DOB:</span>
-            </div>
-            <div className="border-b border-black pb-1">
-              <span className="font-semibold">Date:</span> {new Date().toLocaleDateString()}
-            </div>
-            
-            <div className="col-span-2 border-b border-black pb-1">
-              <span className="font-semibold">Parent/Guardian Name:</span>
-            </div>
-            <div className="border-b border-black pb-1">
-              <span className="font-semibold">Email:</span>
-            </div>
-            <div className="border-b border-black pb-1">
-              <span className="font-semibold">Phone:</span> {printMedicalTemplateData.patient?.phone}
-            </div>
-
-            <div className="col-span-4 border-b border-black pb-1">
-              <span className="font-semibold">Address:</span> {printMedicalTemplateData.patient?.address}
-            </div>
-          </div>
-
-          <div className="font-bold text-sm bg-gray-100 p-2 mb-4 border border-black">
-            Attention: Eye Care Specialist (A licensed ophthalmologist or optometrist must address each item below).
-          </div>
-
-          {/* Diagnosis & Etiology */}
-          <div className="space-y-4 mb-6 text-sm">
-            <div className="flex border-b border-black pb-1">
-              <span className="w-24 font-bold">Diagnosis:</span>
-              <span className="flex-1"></span>
-            </div>
-            <div className="flex border-b border-black pb-1">
-              <span className="w-24 font-bold">Etiology:</span>
-              <span className="flex-1"></span>
-            </div>
-          </div>
-
-          {/* Visual Acuity */}
-          <h2 className="font-bold text-lg mb-2 border-b border-black">Visual Acuity</h2>
-          <table className="w-full mb-6 border border-black">
-            <thead>
-              <tr className="bg-gray-50 border-b border-black text-center">
-                <th className="border-r border-black p-2"></th>
-                <th className="border-r border-black p-2" colSpan={2}>Distance Vision</th>
-                <th className="p-2" colSpan={2}>Near Vision</th>
-              </tr>
-              <tr className="border-b border-black text-center text-[10px]">
-                <th className="border-r border-black p-1"></th>
-                <th className="border-r border-black p-1">Without Correction</th>
-                <th className="border-r border-black p-1">With Best Correction</th>
-                <th className="border-r border-black p-1">Without Correction</th>
-                <th className="p-1">With Best Correction</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-black h-10">
-                <td className="border-r border-black p-2 font-bold w-24">OD (Right)</td>
-                <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
-              </tr>
-              <tr className="border-b border-black h-10">
-                <td className="border-r border-black p-2 font-bold">OS (Left)</td>
-                <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
-              </tr>
-              <tr className="h-10">
-                <td className="border-r border-black p-2 font-bold">OU (Both)</td>
-                <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
-              </tr>
-            </tbody>
-          </table>
-
-          {/* Details */}
-          <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-6 text-sm">
-            <div className="flex border-b border-black pb-1">
-              <span className="w-32 font-semibold">Refractive Error:</span> OD (Right) _________
-            </div>
-            <div className="flex border-b border-black pb-1">
-              OS (Left) _________
-            </div>
-            <div className="flex border-b border-black pb-1">
-              <span className="w-32 font-semibold">Ocular Pressure:</span> OD (Right) _________
-            </div>
-            <div className="flex border-b border-black pb-1">
-              OS (Left) _________
-            </div>
-            <div className="col-span-2">
-              <span className="font-semibold mr-4">Does this student have difficulties seeing color?</span>
-              [ ] Yes &nbsp;&nbsp; [ ] No
-              <div className="mt-2 border-b border-black h-6">If yes, describe:</div>
-            </div>
-            <div className="col-span-2">
-              <span className="font-semibold mr-4">Is the student photophobic?</span>
-              [ ] Yes &nbsp;&nbsp; [ ] No
-            </div>
-            <div className="col-span-2 flex items-end">
-              <span className="font-semibold mr-2">Lighting conditions:</span>
-              <div className="border-b border-black flex-1 h-6"></div>
-            </div>
-          </div>
-
-          <div className="mb-6 border border-black p-4 text-sm">
-            <p className="font-bold mb-2">Complete ONLY if Acuity cannot be measured. Check the most appropriate estimation below:</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>[ ] Better than 20/70</div>
-              <div>[ ] Legally blind 20/200 or worse</div>
-              <div>[ ] Between 20/70 and 20/200</div>
-              <div>[ ] Functions at the definition of blindness</div>
-            </div>
-            
-            <p className="font-bold mt-4 mb-2">For Students Who Are Otherwise Unable to be Assessed:</p>
-            <p className="mb-1">Describe the function if standard visual acuities and measures of field of vision are unattainable:</p>
-            <div className="border-b border-black h-6 mb-2"></div>
-            <div className="border-b border-black h-6"></div>
-          </div>
-
-          <h2 className="font-bold text-lg mb-2 border-b border-black">Visual Fields</h2>
-          <div className="text-sm space-y-4">
-            <div>
-              <span className="font-semibold mr-4">Does the student have a field loss?</span>
-              [ ] Yes &nbsp;&nbsp; [ ] No
-            </div>
-            <div className="pl-4 space-y-2">
-              <div className="flex items-end">
-                <span className="mr-2">Describe: &nbsp; [ ] Central:</span>
-                <div className="border-b border-black flex-1 h-6"></div>
+        <div className="hidden print:flex flex-col fixed inset-0 w-full h-full bg-white text-black text-sm font-sans z-[9999]">
+          
+          {/* HEADER (Matching Eye Examination slip) */}
+          <div className="flex flex-col mb-4 pt-4">
+            <div className="text-right text-xs font-bold mb-1 mr-4">Mob.: 7643955517, 8340508210</div>
+            <div className="flex justify-between items-center px-4">
+              <Eye className="w-12 h-12 text-blue-900" />
+              <div className="text-center">
+                <h1 className="text-3xl font-extrabold text-blue-900 tracking-wide uppercase">PRIYANSHI EYE CARE CENTRE</h1>
+                <p className="text-sm font-bold text-blue-900 mt-1">BETTER VISION, BEAUTIFUL LIFE</p>
+                <p className="text-xs text-blue-900 mt-1">New Manoj Medical Hall, P.G. Road, Makhdumpur, Jehanabad</p>
               </div>
-              <div className="flex items-end">
-                <span className="mr-2">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [ ] Peripheral:</span>
-                <div className="border-b border-black flex-1 h-6"></div>
+              <Eye className="w-12 h-12 text-blue-900" />
+            </div>
+            <div className="border-b-2 border-blue-900 mt-2 mx-2"></div>
+            <div className="border-b border-blue-900 mt-[2px] mx-2"></div>
+          </div>
+
+          <h2 className="text-center font-bold text-xl uppercase tracking-widest my-4 underline underline-offset-4">Bill / Receipt</h2>
+
+          {/* PATIENT DETAILS */}
+          <div className="px-6 py-2">
+            <div className="flex justify-between items-end mb-4 text-[15px]">
+              <div className="flex-1 flex items-end">
+                <span className="font-semibold mr-2">Patient Name:</span>
+                <span className="flex-1 border-b-[1.5px] border-dotted border-gray-500 pb-1 px-2 uppercase">{printMedicalTemplateData.patient?.name}</span>
+              </div>
+              <div className="w-48 flex items-end ml-4">
+                <span className="font-semibold mr-2">Age/Sex:</span>
+                <span className="flex-1 border-b-[1.5px] border-dotted border-gray-500 pb-1 px-2 text-center uppercase">{printMedicalTemplateData.patient?.age || '    '} / {printMedicalTemplateData.patient?.gender?.charAt(0) || '    '}</span>
               </div>
             </div>
+            <div className="flex justify-between items-end text-[15px]">
+              <div className="flex-1 flex items-end">
+                <span className="font-semibold mr-2">Address:</span>
+                <span className="flex-1 border-b-[1.5px] border-dotted border-gray-500 pb-1 px-2">{printMedicalTemplateData.patient?.address}</span>
+              </div>
+              <div className="w-64 flex items-end ml-4">
+                <span className="font-semibold mr-2">Date:</span>
+                <span className="flex-1 border-b-[1.5px] border-dotted border-gray-500 pb-1 px-2 text-center">{new Date().toLocaleDateString('en-GB')}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* BILL PARTICULARS TABLE */}
+          <div className="px-6 mt-8 flex-1">
+            <table className="w-full border-collapse border-2 border-black text-left">
+              <thead>
+                <tr className="border-b-2 border-black">
+                  <th className="border-r-2 border-black p-3 w-16 text-center">S.No.</th>
+                  <th className="border-r-2 border-black p-3">Particulars</th>
+                  <th className="p-3 w-40 text-center">Amount (Rs)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-black">
+                  <td className="border-r-2 border-black p-3 text-center h-12">1</td>
+                  <td className="border-r-2 border-black p-3 font-semibold">Consultation Fee</td>
+                  <td className="p-3 text-center">{printMedicalTemplateData.patient?.feeAmount ? `Rs. ${printMedicalTemplateData.patient.feeAmount}` : ''}</td>
+                </tr>
+                <tr className="border-b border-black">
+                  <td className="border-r-2 border-black p-3 text-center h-12">2</td>
+                  <td className="border-r-2 border-black p-3"></td>
+                  <td className="p-3"></td>
+                </tr>
+                <tr className="border-b border-black">
+                  <td className="border-r-2 border-black p-3 text-center h-12">3</td>
+                  <td className="border-r-2 border-black p-3"></td>
+                  <td className="p-3"></td>
+                </tr>
+                <tr>
+                  <td className="border-r-2 border-black p-3 text-center h-12"></td>
+                  <td className="border-r-2 border-black p-3 text-right font-bold">Total Amount</td>
+                  <td className="p-3 text-center font-bold border-t-2 border-black">{printMedicalTemplateData.patient?.feeAmount ? `Rs. ${printMedicalTemplateData.patient.feeAmount}` : ''}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* PAYMENT MODE & SIGNATURE */}
+            <div className="flex justify-between items-end mt-16 px-4">
+              <div className="flex items-center space-x-6 text-lg font-bold">
+                <span>Payment Mode:</span>
+                <label className="flex items-center space-x-2">
+                  <div className="w-5 h-5 border-2 border-black flex items-center justify-center font-black">
+                    {printMedicalTemplateData.patient?.paymentMethod === 'Cash' ? '✓' : ''}
+                  </div>
+                  <span>Cash</span>
+                </label>
+                <label className="flex items-center space-x-2">
+                  <div className="w-5 h-5 border-2 border-black flex items-center justify-center font-black">
+                    {printMedicalTemplateData.patient?.paymentMethod === 'Online' ? '✓' : ''}
+                  </div>
+                  <span>Online (UPI)</span>
+                </label>
+              </div>
+              <div className="text-center">
+                <div className="w-48 border-b-[1.5px] border-dotted border-gray-500 mb-2"></div>
+                <span className="font-semibold">Authorized Signatory</span>
+              </div>
+            </div>
+          </div>
+
+          {/* FOOTER */}
+          <div className="w-full text-center pb-8 pt-2 mt-4">
+            <p className="font-bold text-lg text-blue-900 font-sans">Thank you for visiting Priyanshi Eye Care Centre!</p>
           </div>
 
         </div>

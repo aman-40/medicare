@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
-import { Package, AlertTriangle, Clock, Plus, Save, Trash2, RefreshCw } from "lucide-react";
+import { Package, AlertTriangle, Clock, Plus, Save, Trash2, RefreshCw, Upload, Download } from "lucide-react";
 import { useNavigate } from "react-router";
 import api from "../../api/axios";
 
@@ -12,6 +12,7 @@ export default function MedicalInventory() {
   const [stats, setStats] = useState<any>(null);
   const [medicines, setMedicines] = useState<any[]>([]);
   const [loadingRowId, setLoadingRowId] = useState<string | null>(null);
+  const [isUploadingCSV, setIsUploadingCSV] = useState(false);
   const [filterMode, setFilterMode] = useState<'ALL' | 'LOW_STOCK' | 'EXPIRING'>('ALL');
   const navigate = useNavigate();
 
@@ -137,6 +138,69 @@ export default function MedicalInventory() {
     }
   };
 
+  const handleDownloadTemplate = () => {
+    const headers = "Name,Company,BatchNo,Stock,PurchasePrice,SellingPrice,ExpiryDate,SupplierName\n";
+    const sample = "Paracetamol 500mg,Glaxo,B-12345,100,2.50,5.00,2026-12-31,PharmaCorp\n";
+    const blob = new Blob([headers + sample], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "medicine_inventory_template.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingCSV(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const text = evt.target?.result as string;
+        const lines = text.split('\n').filter(l => l.trim());
+        if (lines.length < 2) throw new Error("CSV must contain a header row and at least one data row.");
+
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        
+        const parsedMedicines = [];
+        for (let i = 1; i < lines.length; i++) {
+          const vals = lines[i].split(',').map(v => v.trim());
+          const obj: any = {};
+          headers.forEach((h, index) => {
+            if (h === 'name') obj.name = vals[index];
+            if (h === 'company') obj.company = vals[index];
+            if (h === 'batchno') obj.batchNo = vals[index];
+            if (h === 'stock') obj.stock = vals[index];
+            if (h === 'purchaseprice') obj.purchasePrice = vals[index];
+            if (h === 'sellingprice') obj.sellingPrice = vals[index];
+            if (h === 'expirydate') obj.expiryDate = vals[index];
+            if (h === 'suppliername') obj.supplierName = vals[index];
+          });
+          parsedMedicines.push(obj);
+        }
+
+        const res = await api.post('/inventory/medicines/bulk', { medicines: parsedMedicines });
+        alert(`Upload Complete!\nSuccess: ${res.data.successCount}\nErrors: ${res.data.errorCount}\n${res.data.errorCount > 0 ? 'Check console for error details.' : ''}`);
+        if(res.data.errors?.length) console.error("CSV Upload Errors:", res.data.errors);
+        
+        fetchData(); // Refresh the table
+      } catch (err: any) {
+        alert(`Error processing CSV: ${err.message}`);
+      } finally {
+        setIsUploadingCSV(false);
+        // Reset file input
+        if (e.target) e.target.value = '';
+      }
+    };
+    reader.onerror = () => {
+      alert("Failed to read file");
+      setIsUploadingCSV(false);
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -230,9 +294,27 @@ export default function MedicalInventory() {
       <Card className="border-2 border-slate-200 shadow-sm mt-8">
         <CardHeader className="bg-slate-50 border-b border-slate-200 flex flex-row items-center justify-between">
           <CardTitle className="text-lg text-slate-800">Medicine Database (Spreadsheet Mode)</CardTitle>
-          <Button onClick={handleAddRow} size="sm" className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="w-4 h-4 mr-2" /> Add Row
-          </Button>
+          <div className="flex items-center space-x-3">
+            <Button variant="outline" onClick={handleDownloadTemplate} size="sm" className="text-slate-600 border-slate-300">
+              <Download className="w-4 h-4 mr-2" /> Template
+            </Button>
+            <div className="relative">
+              <input 
+                type="file" 
+                accept=".csv" 
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                onChange={handleFileUpload} 
+                disabled={isUploadingCSV}
+              />
+              <Button size="sm" variant="secondary" className="bg-slate-200 hover:bg-slate-300 text-slate-800" disabled={isUploadingCSV}>
+                {isUploadingCSV ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                {isUploadingCSV ? "Uploading..." : "Upload CSV"}
+              </Button>
+            </div>
+            <Button onClick={handleAddRow} size="sm" className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="w-4 h-4 mr-2" /> Add Row
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <Table className="min-w-[1200px]">

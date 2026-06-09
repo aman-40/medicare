@@ -40,6 +40,8 @@ model Patient {
   phone       String?
   address     String?
   occupation  String?
+  feeAmount   Float?
+  paymentMethod String?
   createdAt   DateTime @default(now())
 
   user        User?    @relation(fields: [userId], references: [id])

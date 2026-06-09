@@ -23,25 +23,12 @@ export default function EyeExamination() {
   const [addPower, setAddPower] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Extended JSON Fields (Medical Report)
+  // Receipt Fields
   const [reportData, setReportData] = useState({
-    diagnosis: '',
-    etiology: '',
-    visualAcuity: {
-      distance: { od: { uncorrected: '', corrected: '' }, os: { uncorrected: '', corrected: '' }, ou: { uncorrected: '', corrected: '' } },
-      near: { od: { uncorrected: '', corrected: '' }, os: { uncorrected: '', corrected: '' }, ou: { uncorrected: '', corrected: '' } }
-    },
-    refractiveError: { od: '', os: '' },
-    ocularPressure: { od: '', os: '' },
-    colorDifficulty: false,
-    colorDescription: '',
-    photophobic: false,
-    lightingConditions: '',
-    acuityEstimation: '', // 'Better than 20/70', 'Legally blind', 'Between 20/70 and 20/200', 'Functions at definition'
-    unableToAssessDesc: '',
-    fieldLoss: false,
-    fieldCentral: '',
-    fieldPeripheral: ''
+    pupil: '',
+    cornea: '',
+    chiefComplaint: '',
+    va: ''
   });
 
   const [loading, setLoading] = useState(false);
@@ -99,17 +86,7 @@ export default function EyeExamination() {
       setRightSph(''); setRightCyl(''); setRightAxis('');
       setLeftSph(''); setLeftCyl(''); setLeftAxis(''); setAddPower(''); setNotes('');
       setReportData({
-        diagnosis: '', etiology: '',
-        visualAcuity: {
-          distance: { od: { uncorrected: '', corrected: '' }, os: { uncorrected: '', corrected: '' }, ou: { uncorrected: '', corrected: '' } },
-          near: { od: { uncorrected: '', corrected: '' }, os: { uncorrected: '', corrected: '' }, ou: { uncorrected: '', corrected: '' } }
-        },
-        refractiveError: { od: '', os: '' },
-        ocularPressure: { od: '', os: '' },
-        colorDifficulty: false, colorDescription: '',
-        photophobic: false, lightingConditions: '',
-        acuityEstimation: '', unableToAssessDesc: '',
-        fieldLoss: false, fieldCentral: '', fieldPeripheral: ''
+        pupil: '', cornea: '', chiefComplaint: '', va: ''
       });
       setSelectedPatientId("");
       fetchServingPatients();
@@ -158,53 +135,23 @@ export default function EyeExamination() {
               </Select>
             </div>
 
-            {/* Diagnosis & Etiology */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
+            {/* Receipt Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t border-slate-200">
               <div className="space-y-2">
-                <Label>Diagnosis</Label>
-                <Input value={reportData.diagnosis} onChange={e => handleReportDataChange(['diagnosis'], e.target.value)} />
+                <Label>Chief Complaint (C/o)</Label>
+                <Input value={reportData.chiefComplaint} onChange={e => handleReportDataChange(['chiefComplaint'], e.target.value)} placeholder="e.g., Blurry vision" />
               </div>
               <div className="space-y-2">
-                <Label>Etiology</Label>
-                <Input value={reportData.etiology} onChange={e => handleReportDataChange(['etiology'], e.target.value)} />
+                <Label>Visual Acuity (V/A)</Label>
+                <Input value={reportData.va} onChange={e => handleReportDataChange(['va'], e.target.value)} placeholder="e.g., 6/6" />
               </div>
-            </div>
-
-            {/* Visual Acuity */}
-            <div className="pt-4 border-t border-slate-200">
-              <Label className="text-lg font-bold mb-4 block">Visual Acuity</Label>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border-collapse border border-slate-300">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="border border-slate-300 p-2"></th>
-                      <th colSpan={2} className="border border-slate-300 p-2 text-center">Distance Vision</th>
-                      <th colSpan={2} className="border border-slate-300 p-2 text-center">Near Vision</th>
-                    </tr>
-                    <tr className="text-xs">
-                      <th className="border border-slate-300 p-2"></th>
-                      <th className="border border-slate-300 p-2 text-center">Without Correction</th>
-                      <th className="border border-slate-300 p-2 text-center">With Best Correction</th>
-                      <th className="border border-slate-300 p-2 text-center">Without Correction</th>
-                      <th className="border border-slate-300 p-2 text-center">With Best Correction</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      { key: 'od', label: 'OD (Right)' },
-                      { key: 'os', label: 'OS (Left)' },
-                      { key: 'ou', label: 'OU (Both)' }
-                    ].map(row => (
-                      <tr key={row.key}>
-                        <td className="border border-slate-300 p-2 font-bold bg-slate-50">{row.label}</td>
-                        <td className="border border-slate-300 p-1"><Input value={reportData.visualAcuity.distance[row.key as keyof typeof reportData.visualAcuity.distance].uncorrected} onChange={e => handleReportDataChange(['visualAcuity', 'distance', row.key, 'uncorrected'], e.target.value)} className="h-8 rounded-none border-none shadow-none focus-visible:ring-0" /></td>
-                        <td className="border border-slate-300 p-1"><Input value={reportData.visualAcuity.distance[row.key as keyof typeof reportData.visualAcuity.distance].corrected} onChange={e => handleReportDataChange(['visualAcuity', 'distance', row.key, 'corrected'], e.target.value)} className="h-8 rounded-none border-none shadow-none focus-visible:ring-0" /></td>
-                        <td className="border border-slate-300 p-1"><Input value={reportData.visualAcuity.near[row.key as keyof typeof reportData.visualAcuity.near].uncorrected} onChange={e => handleReportDataChange(['visualAcuity', 'near', row.key, 'uncorrected'], e.target.value)} className="h-8 rounded-none border-none shadow-none focus-visible:ring-0" /></td>
-                        <td className="border border-slate-300 p-1"><Input value={reportData.visualAcuity.near[row.key as keyof typeof reportData.visualAcuity.near].corrected} onChange={e => handleReportDataChange(['visualAcuity', 'near', row.key, 'corrected'], e.target.value)} className="h-8 rounded-none border-none shadow-none focus-visible:ring-0" /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-2">
+                <Label>Pupil</Label>
+                <Input value={reportData.pupil} onChange={e => handleReportDataChange(['pupil'], e.target.value)} placeholder="e.g., Normal" />
+              </div>
+              <div className="space-y-2">
+                <Label>Cornea</Label>
+                <Input value={reportData.cornea} onChange={e => handleReportDataChange(['cornea'], e.target.value)} placeholder="e.g., Clear" />
               </div>
             </div>
 
@@ -217,10 +164,6 @@ export default function EyeExamination() {
                   <div className="space-y-2"><Label>CYL</Label><Input value={rightCyl} onChange={e => setRightCyl(e.target.value)} placeholder="-0.00" /></div>
                   <div className="space-y-2"><Label>AXIS</Label><Input value={rightAxis} onChange={e => setRightAxis(e.target.value)} placeholder="180" /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div className="space-y-2"><Label>Refractive Error</Label><Input value={reportData.refractiveError.od} onChange={e => handleReportDataChange(['refractiveError', 'od'], e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Ocular Pressure</Label><Input value={reportData.ocularPressure.od} onChange={e => handleReportDataChange(['ocularPressure', 'od'], e.target.value)} /></div>
-                </div>
               </div>
 
               <div className="space-y-4 border rounded-xl p-6 bg-emerald-50/50">
@@ -230,79 +173,18 @@ export default function EyeExamination() {
                   <div className="space-y-2"><Label>CYL</Label><Input value={leftCyl} onChange={e => setLeftCyl(e.target.value)} placeholder="-0.00" /></div>
                   <div className="space-y-2"><Label>AXIS</Label><Input value={leftAxis} onChange={e => setLeftAxis(e.target.value)} placeholder="180" /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div className="space-y-2"><Label>Refractive Error</Label><Input value={reportData.refractiveError.os} onChange={e => handleReportDataChange(['refractiveError', 'os'], e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Ocular Pressure</Label><Input value={reportData.ocularPressure.os} onChange={e => handleReportDataChange(['ocularPressure', 'os'], e.target.value)} /></div>
-                </div>
+              </div>
+            </div>
+            
+            {/* ADD Power (Since it applies to both) */}
+            <div className="pt-4 border-t border-slate-200">
+              <div className="max-w-xs space-y-2">
+                <Label className="font-bold">ADD Power</Label>
+                <Input value={addPower} onChange={e => setAddPower(e.target.value)} placeholder="+2.00" />
               </div>
             </div>
 
-            {/* Conditions & Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-slate-200">
-              <div className="space-y-4">
-                <div className="flex items-start space-x-2">
-                  <Checkbox id="colorDiff" checked={reportData.colorDifficulty} onCheckedChange={(c) => handleReportDataChange(['colorDifficulty'], !!c)} />
-                  <div className="grid gap-1.5 leading-none">
-                    <Label htmlFor="colorDiff" className="font-semibold">Difficulties seeing color?</Label>
-                  </div>
-                </div>
-                {reportData.colorDifficulty && (
-                  <Input placeholder="Describe color difficulties..." value={reportData.colorDescription} onChange={e => handleReportDataChange(['colorDescription'], e.target.value)} />
-                )}
 
-                <div className="flex items-start space-x-2">
-                  <Checkbox id="photo" checked={reportData.photophobic} onCheckedChange={(c) => handleReportDataChange(['photophobic'], !!c)} />
-                  <div className="grid gap-1.5 leading-none">
-                    <Label htmlFor="photo" className="font-semibold">Is the patient photophobic?</Label>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="font-semibold">Lighting Conditions</Label>
-                  <Input value={reportData.lightingConditions} onChange={e => handleReportDataChange(['lightingConditions'], e.target.value)} />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-start space-x-2">
-                  <Checkbox id="field" checked={reportData.fieldLoss} onCheckedChange={(c) => handleReportDataChange(['fieldLoss'], !!c)} />
-                  <div className="grid gap-1.5 leading-none">
-                    <Label htmlFor="field" className="font-semibold text-lg">Visual Field Loss?</Label>
-                  </div>
-                </div>
-                {reportData.fieldLoss && (
-                  <div className="space-y-4 pl-6 border-l-2 border-slate-200">
-                    <div className="space-y-2">
-                      <Label>Central Loss Description</Label>
-                      <Input value={reportData.fieldCentral} onChange={e => handleReportDataChange(['fieldCentral'], e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Peripheral Loss Description</Label>
-                      <Input value={reportData.fieldPeripheral} onChange={e => handleReportDataChange(['fieldPeripheral'], e.target.value)} />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Unmeasurable Acuity */}
-            <div className="pt-4 border-t border-slate-200 space-y-4">
-              <Label className="font-semibold text-red-600 block">Complete ONLY if Acuity cannot be measured:</Label>
-              <Select value={reportData.acuityEstimation} onValueChange={v => handleReportDataChange(['acuityEstimation'], v)}>
-                <SelectTrigger className="max-w-md"><SelectValue placeholder="Check appropriate estimation" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Better than 20/70">Better than 20/70</SelectItem>
-                  <SelectItem value="Between 20/70 and 20/200">Between 20/70 and 20/200</SelectItem>
-                  <SelectItem value="Legally blind 20/200 or worse">Legally blind 20/200 or worse</SelectItem>
-                  <SelectItem value="Functions at definition of blindness">Functions at definition of blindness</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <div className="space-y-2">
-                <Label>For patients otherwise unable to be assessed (Describe function):</Label>
-                <Textarea value={reportData.unableToAssessDesc} onChange={e => handleReportDataChange(['unableToAssessDesc'], e.target.value)} rows={2} />
-              </div>
-            </div>
 
             <div className="pt-4 border-t border-slate-200 space-y-2">
               <Label>General Notes & Remarks</Label>
@@ -321,144 +203,122 @@ export default function EyeExamination() {
 
       {/* --- HIDDEN PRE-FILLED PRINT TEMPLATE --- */}
       {selectedPatientId && (
-        <div className="hidden print:block absolute top-0 left-0 w-[210mm] h-[297mm] bg-white text-black p-4 text-xs font-sans">
-          <div className="text-center mb-6 border-b-2 border-black pb-2">
-            <h1 className="text-xl font-bold uppercase mb-1">Manoj Medical Hall Eye Medical Report</h1>
-            <p className="text-sm">Exceptional Student / Patient Evaluation Form</p>
+        <div className="hidden print:flex flex-col fixed inset-0 w-full h-full bg-white text-black text-sm font-sans z-[9999]">
+          
+          {/* HEADER */}
+          <div className="flex flex-col mb-4 pt-4">
+            <div className="text-right text-xs font-bold mb-1 mr-4">Mob.: 7643955517, 8340508210</div>
+            <div className="flex justify-between items-center px-4">
+              <Eye className="w-12 h-12 text-blue-900" />
+              <div className="text-center">
+                <h1 className="text-3xl font-extrabold text-blue-900 tracking-wide uppercase">PRIYANSHI EYE CARE CENTRE</h1>
+                <p className="text-sm font-bold text-blue-900 mt-1">BETTER VISION, BEAUTIFUL LIFE</p>
+                <p className="text-xs text-blue-900 mt-1">New Manoj Medical Hall, P.G. Road, Makhdumpur, Jehanabad</p>
+              </div>
+              <Eye className="w-12 h-12 text-blue-900" />
+            </div>
+            <div className="border-b-2 border-blue-900 mt-2 mx-2"></div>
+            <div className="border-b border-blue-900 mt-[2px] mx-2"></div>
           </div>
 
-          <div className="grid grid-cols-4 gap-4 mb-6 text-sm">
-            <div className="col-span-2 border-b border-black pb-1">
-              <span className="font-semibold">Student/Patient Name:</span> <span className="text-lg">{selectedPatient?.name}</span>
+          {/* PATIENT DETAILS */}
+          <div className="px-6 py-2">
+            <div className="flex justify-between items-end mb-4 text-[15px]">
+              <div className="flex-1 flex items-end">
+                <span className="font-semibold mr-2">Name</span>
+                <span className="flex-1 border-b-[1.5px] border-dotted border-gray-500 pb-1 px-2 uppercase">{selectedPatient?.name}</span>
+              </div>
+              <div className="w-48 flex items-end ml-4">
+                <span className="font-semibold mr-2">Age/Sex</span>
+                <span className="flex-1 border-b-[1.5px] border-dotted border-gray-500 pb-1 px-2 text-center uppercase">{selectedPatient?.age || '    '} / {selectedPatient?.gender?.charAt(0) || '    '}</span>
+              </div>
             </div>
-            <div className="border-b border-black pb-1">
-              <span className="font-semibold">DOB:</span>
-            </div>
-            <div className="border-b border-black pb-1">
-              <span className="font-semibold">Date:</span> {new Date().toLocaleDateString()}
-            </div>
-            
-            <div className="col-span-2 border-b border-black pb-1">
-              <span className="font-semibold">Parent/Guardian Name:</span>
-            </div>
-            <div className="border-b border-black pb-1">
-              <span className="font-semibold">Email:</span>
-            </div>
-            <div className="border-b border-black pb-1">
-              <span className="font-semibold">Phone:</span> {selectedPatient?.phone}
-            </div>
-
-            <div className="col-span-4 border-b border-black pb-1">
-              <span className="font-semibold">Address:</span> {selectedPatient?.address}
-            </div>
-          </div>
-
-          <div className="font-bold text-sm bg-gray-100 p-2 mb-4 border border-black">
-            Attention: Eye Care Specialist (A licensed ophthalmologist or optometrist must address each item below).
-          </div>
-
-          <div className="space-y-4 mb-6 text-sm">
-            <div className="flex border-b border-black pb-1">
-              <span className="w-24 font-bold">Diagnosis:</span>
-              <span className="flex-1">{reportData.diagnosis}</span>
-            </div>
-            <div className="flex border-b border-black pb-1">
-              <span className="w-24 font-bold">Etiology:</span>
-              <span className="flex-1">{reportData.etiology}</span>
+            <div className="flex justify-end text-[15px]">
+              <div className="w-64 flex items-end">
+                <span className="font-semibold mr-2">Date</span>
+                <span className="flex-1 border-b-[1.5px] border-dotted border-gray-500 pb-1 px-2 text-center">{new Date().toLocaleDateString('en-GB')}</span>
+              </div>
             </div>
           </div>
 
-          <h2 className="font-bold text-lg mb-2 border-b border-black">Visual Acuity</h2>
-          <table className="w-full mb-6 border border-black text-center">
-            <thead>
-              <tr className="bg-gray-50 border-b border-black">
-                <th className="border-r border-black p-2"></th>
-                <th className="border-r border-black p-2" colSpan={2}>Distance Vision</th>
-                <th className="p-2" colSpan={2}>Near Vision</th>
-              </tr>
-              <tr className="border-b border-black text-[10px]">
-                <th className="border-r border-black p-1"></th>
-                <th className="border-r border-black p-1">Without Correction</th>
-                <th className="border-r border-black p-1">With Best Correction</th>
-                <th className="border-r border-black p-1">Without Correction</th>
-                <th className="p-1">With Best Correction</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { key: 'od', label: 'OD (Right)' },
-                { key: 'os', label: 'OS (Left)' },
-                { key: 'ou', label: 'OU (Both)' }
-              ].map(row => (
-                <tr key={row.key} className="border-b border-black h-8">
-                  <td className="border-r border-black p-2 font-bold w-24 text-left">{row.label}</td>
-                  <td className="border-r border-black">{reportData.visualAcuity.distance[row.key as keyof typeof reportData.visualAcuity.distance].uncorrected}</td>
-                  <td className="border-r border-black">{reportData.visualAcuity.distance[row.key as keyof typeof reportData.visualAcuity.distance].corrected}</td>
-                  <td className="border-r border-black">{reportData.visualAcuity.near[row.key as keyof typeof reportData.visualAcuity.near].uncorrected}</td>
-                  <td>{reportData.visualAcuity.near[row.key as keyof typeof reportData.visualAcuity.near].corrected}</td>
+          {/* CLINICAL BODY */}
+          <div className="flex px-6 mt-8 flex-1">
+            {/* Left Column */}
+            <div className="w-1/2 flex flex-col space-y-12">
+              <div className="flex items-center text-xl font-bold">
+                <div className="flex flex-col items-center mr-2 leading-none">
+                  <span>V</span>
+                  <span>A</span>
+                </div>
+                <span className="text-4xl text-blue-900 font-light">&lt;</span>
+                <span className="ml-4 text-lg font-normal">{reportData.va}</span>
+              </div>
+              <div className="flex items-center text-xl font-bold">
+                <span className="mr-2">Pupil</span>
+                <span className="text-4xl text-blue-900 font-light">&lt;</span>
+                <span className="ml-4 text-lg font-normal">{reportData.pupil}</span>
+              </div>
+              <div className="flex items-center text-xl font-bold">
+                <span className="mr-2">Cornea</span>
+                <span className="text-4xl text-blue-900 font-light">&lt;</span>
+                <span className="ml-4 text-lg font-normal">{reportData.cornea}</span>
+              </div>
+            </div>
+            {/* Right Column */}
+            <div className="w-1/2 pt-4">
+              <div className="flex">
+                <span className="text-xl font-bold mr-2">C/o -</span>
+                <span className="text-lg flex-1 mt-1">{reportData.chiefComplaint}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* PRESCRIPTION TABLE */}
+          <div className="px-10 w-full mb-8">
+            <h3 className="text-center font-bold text-blue-900 text-lg mb-1">N.V./CONSTANT VALUE</h3>
+            <table className="w-full border-collapse border-2 border-blue-900 text-center">
+              <thead>
+                <tr>
+                  <th className="border border-blue-900 p-2 w-16 bg-white"></th>
+                  <th className="border border-blue-900 p-2 font-bold text-blue-900" colSpan={3}>Right Eye</th>
+                  <th className="border border-blue-900 p-2 font-bold text-blue-900" colSpan={3}>Left Eye</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-6 text-sm">
-            <div className="flex border-b border-black pb-1">
-              <span className="w-32 font-semibold">Refractive Error:</span> OD (Right) &nbsp;{reportData.refractiveError.od}
-            </div>
-            <div className="flex border-b border-black pb-1">
-              OS (Left) &nbsp;{reportData.refractiveError.os}
-            </div>
-            <div className="flex border-b border-black pb-1">
-              <span className="w-32 font-semibold">Ocular Pressure:</span> OD (Right) &nbsp;{reportData.ocularPressure.od}
-            </div>
-            <div className="flex border-b border-black pb-1">
-              OS (Left) &nbsp;{reportData.ocularPressure.os}
-            </div>
-            <div className="col-span-2">
-              <span className="font-semibold mr-4">Does this student have difficulties seeing color?</span>
-              [{reportData.colorDifficulty ? 'X' : ' '}] Yes &nbsp;&nbsp; [{!reportData.colorDifficulty ? 'X' : ' '}] No
-              <div className="mt-2 border-b border-black h-6">If yes, describe: {reportData.colorDescription}</div>
-            </div>
-            <div className="col-span-2">
-              <span className="font-semibold mr-4">Is the student photophobic?</span>
-              [{reportData.photophobic ? 'X' : ' '}] Yes &nbsp;&nbsp; [{!reportData.photophobic ? 'X' : ' '}] No
-            </div>
-            <div className="col-span-2 flex items-end">
-              <span className="font-semibold mr-2">Lighting conditions:</span>
-              <div className="border-b border-black flex-1 h-6">{reportData.lightingConditions}</div>
-            </div>
+                <tr className="text-sm font-bold text-blue-900">
+                  <td className="border border-blue-900 p-1 bg-white"></td>
+                  <td className="border border-blue-900 p-1">SPH.</td>
+                  <td className="border border-blue-900 p-1">CYL.</td>
+                  <td className="border border-blue-900 p-1">AXIS</td>
+                  <td className="border border-blue-900 p-1">SPH.</td>
+                  <td className="border border-blue-900 p-1">CYL.</td>
+                  <td className="border border-blue-900 p-1">AXIS</td>
+                </tr>
+              </thead>
+              <tbody className="font-semibold">
+                <tr className="h-10">
+                  <td className="border border-blue-900 p-1 font-bold text-blue-900">DIS.</td>
+                  <td className="border border-blue-900 p-1">{rightSph}</td>
+                  <td className="border border-blue-900 p-1">{rightCyl}</td>
+                  <td className="border border-blue-900 p-1">{rightAxis}</td>
+                  <td className="border border-blue-900 p-1">{leftSph}</td>
+                  <td className="border border-blue-900 p-1">{leftCyl}</td>
+                  <td className="border border-blue-900 p-1">{leftAxis}</td>
+                </tr>
+                <tr className="h-10">
+                  <td className="border border-blue-900 p-1 font-bold text-blue-900">ADD</td>
+                  <td className="border border-blue-900 p-1">{addPower}</td>
+                  <td className="border border-blue-900 p-1 bg-gray-50/30"></td>
+                  <td className="border border-blue-900 p-1 bg-gray-50/30"></td>
+                  <td className="border border-blue-900 p-1">{addPower}</td>
+                  <td className="border border-blue-900 p-1 bg-gray-50/30"></td>
+                  <td className="border border-blue-900 p-1 bg-gray-50/30"></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <div className="mb-6 border border-black p-4 text-sm">
-            <p className="font-bold mb-2">Complete ONLY if Acuity cannot be measured. Check the most appropriate estimation below:</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>[{reportData.acuityEstimation === 'Better than 20/70' ? 'X' : ' '}] Better than 20/70</div>
-              <div>[{reportData.acuityEstimation === 'Legally blind 20/200 or worse' ? 'X' : ' '}] Legally blind 20/200 or worse</div>
-              <div>[{reportData.acuityEstimation === 'Between 20/70 and 20/200' ? 'X' : ' '}] Between 20/70 and 20/200</div>
-              <div>[{reportData.acuityEstimation === 'Functions at definition of blindness' ? 'X' : ' '}] Functions at the definition of blindness</div>
-            </div>
-            
-            <p className="font-bold mt-4 mb-2">For Students Who Are Otherwise Unable to be Assessed:</p>
-            <p className="mb-1">Describe the function if standard visual acuities and measures of field of vision are unattainable:</p>
-            <div className="border-b border-black h-6 mb-2">{reportData.unableToAssessDesc}</div>
-          </div>
-
-          <h2 className="font-bold text-lg mb-2 border-b border-black">Visual Fields</h2>
-          <div className="text-sm space-y-4">
-            <div>
-              <span className="font-semibold mr-4">Does the student have a field loss?</span>
-              [{reportData.fieldLoss ? 'X' : ' '}] Yes &nbsp;&nbsp; [{!reportData.fieldLoss ? 'X' : ' '}] No
-            </div>
-            <div className="pl-4 space-y-2">
-              <div className="flex items-end">
-                <span className="mr-2">Describe: &nbsp; Central:</span>
-                <div className="border-b border-black flex-1 h-6">{reportData.fieldCentral}</div>
-              </div>
-              <div className="flex items-end">
-                <span className="mr-2">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Peripheral:</span>
-                <div className="border-b border-black flex-1 h-6">{reportData.fieldPeripheral}</div>
-              </div>
-            </div>
+          {/* FOOTER */}
+          <div className="w-full text-center pb-8">
+            <p className="font-bold text-lg text-blue-900 font-sans">यह Slip सिर्फ Camp के लिए है।</p>
           </div>
 
         </div>
