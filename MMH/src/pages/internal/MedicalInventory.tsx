@@ -3,21 +3,57 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
-import { Package, AlertTriangle, Clock, Plus, Save, Trash2, RefreshCw, Upload, Download } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../../components/ui/dialog";
+import { Package, AlertTriangle, Clock, Plus, Save, Trash2, RefreshCw, Upload, Download, Settings, ShoppingCart, ArrowLeftRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import api from "../../api/axios";
+
+const getValidUnitsForType = (type: string) => {
+  switch (type) {
+    case 'tablet':
+      return [{ value: 'tablet', label: 'Tablet' }, { value: 'piece', label: 'Piece' }];
+    case 'capsule':
+      return [{ value: 'capsule', label: 'Capsule' }, { value: 'piece', label: 'Piece' }];
+    case 'syrup':
+      return [{ value: 'bottle', label: 'Bottle' }];
+    case 'injection':
+      return [{ value: 'vial', label: 'Vial' }];
+    case 'cream':
+    case 'ointment':
+      return [{ value: 'tube', label: 'Tube' }];
+    case 'drops':
+      return [{ value: 'bottle', label: 'Bottle' }, { value: 'piece', label: 'Piece' }];
+    case 'medical_device':
+      return [{ value: 'piece', label: 'Piece' }];
+    default:
+      return [{ value: 'piece', label: 'Piece' }];
+  }
+};
 
 export default function MedicalInventory() {
   const [stats, setStats] = useState<any>(null);
   const [medicines, setMedicines] = useState<any[]>([]);
   const [loadingRowId, setLoadingRowId] = useState<string | null>(null);
+  const [isSavingAll, setIsSavingAll] = useState(false);
   const [isUploadingCSV, setIsUploadingCSV] = useState(false);
   const [filterMode, setFilterMode] = useState<'ALL' | 'LOW_STOCK' | 'EXPIRING'>('ALL');
   const navigate = useNavigate();
 
   // Custom Delete Confirmation State
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Modals for Stock Adjustments and Purchases
+  const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+  const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
+  const [activeMedicine, setActiveMedicine] = useState<any>(null);
+  
+  const [adjustType, setAdjustType] = useState('Addition');
+  const [adjustQty, setAdjustQty] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
+  
+  const [purchaseQty, setPurchaseQty] = useState('');
+  const [purchaseFree, setPurchaseFree] = useState('0');
+  const [purchaseTotalAmt, setPurchaseTotalAmt] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -31,18 +67,26 @@ export default function MedicalInventory() {
       ]);
       setStats(statsRes.data);
       
-      // Transform fetched data to include editable fields easily
       const formattedMeds = medsRes.data.map((m: any) => ({
         id: m.id,
         name: m.name,
+        genericName: m.genericName || '',
         company: m.company || '',
         batchNo: m.batchNo,
         stock: m.stock,
+        minimumStockAlert: m.minimumStockAlert || 10,
         purchasePrice: m.purchasePrice,
         sellingPrice: m.sellingPrice,
+        purchaseDate: m.purchaseDate ? new Date(m.purchaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         expiryDate: new Date(m.expiryDate).toISOString().split('T')[0],
+        supplierId: m.supplierId,
         supplierName: m.supplier?.name || '',
         supplierPhone: m.supplier?.phone || '',
+        productType: m.productType || 'tablet',
+        saleUnit: m.saleUnit || 'piece',
+        stripsPerBox: m.stripsPerBox || '',
+        unitsPerStrip: m.unitsPerStrip || '',
+        bottleVolume: m.bottleVolume || '',
         isDirty: false,
         isNew: false
       }));
@@ -56,14 +100,22 @@ export default function MedicalInventory() {
     const newRow = {
       id: `new-${Date.now()}`,
       name: '',
+      genericName: '',
       company: '',
       batchNo: '',
       stock: '',
+      minimumStockAlert: 10,
       purchasePrice: '',
       sellingPrice: '',
+      purchaseDate: new Date().toISOString().split('T')[0],
       expiryDate: '',
       supplierName: '',
       supplierPhone: '',
+      productType: 'tablet',
+      saleUnit: 'tablet',
+      stripsPerBox: 10,
+      unitsPerStrip: 15,
+      bottleVolume: '',
       isDirty: true,
       isNew: true
     };
@@ -73,44 +125,87 @@ export default function MedicalInventory() {
   const handleChange = (id: string, field: string, value: any) => {
     setMedicines(prev => prev.map(m => {
       if (m.id === id) {
-        return { ...m, [field]: value, isDirty: true };
+        const updated = { ...m, [field]: value, isDirty: true };
+        if (field === 'productType') {
+          const validUnits = getValidUnitsForType(value).map(u => u.value);
+          if (!validUnits.includes(updated.saleUnit)) {
+            updated.saleUnit = validUnits[0];
+          }
+        }
+        return updated;
       }
       return m;
     }));
   };
 
-  const handleSaveRow = async (med: any) => {
-    if (!med.name || !med.batchNo || !med.stock || !med.purchasePrice || !med.sellingPrice || !med.expiryDate || !med.supplierName) {
-      return alert("Please fill all required fields (Name, Batch, Stock, Prices, Expiry, Supplier Name).");
+  const saveSingleRow = async (med: any) => {
+    if (!med.name || !med.batchNo || med.stock === '' || !med.purchasePrice || !med.sellingPrice || !med.expiryDate || !med.supplierName) {
+      throw new Error(`Please fill all required fields for ${med.name || 'new medicine'}.`);
     }
 
+    const payload = {
+      name: med.name,
+      genericName: med.genericName,
+      company: med.company,
+      batchNo: med.batchNo,
+      stock: med.stock, // Only used when isNew is true to set initial stock
+      minimumStockAlert: med.minimumStockAlert,
+      purchasePrice: med.purchasePrice,
+      sellingPrice: med.sellingPrice,
+      purchaseDate: med.purchaseDate,
+      expiryDate: med.expiryDate,
+      supplierId: med.supplierId,
+      supplierName: med.supplierName,
+      supplierPhone: med.supplierPhone,
+      productType: med.productType,
+      saleUnit: med.saleUnit,
+      stripsPerBox: med.stripsPerBox,
+      unitsPerStrip: med.unitsPerStrip,
+      bottleVolume: med.bottleVolume
+    };
+
+    if (med.isNew) {
+      await api.post('/inventory/medicines', payload);
+    } else {
+      await api.put(`/inventory/medicines/${med.id}`, payload);
+    }
+  };
+
+  const handleSaveRow = async (med: any) => {
     setLoadingRowId(med.id);
     try {
-      const payload = {
-        name: med.name,
-        company: med.company,
-        batchNo: med.batchNo,
-        stock: med.stock,
-        purchasePrice: med.purchasePrice,
-        sellingPrice: med.sellingPrice,
-        expiryDate: med.expiryDate,
-        supplierName: med.supplierName,
-        supplierPhone: med.supplierPhone
-      };
-
-      if (med.isNew) {
-        await api.post('/inventory/medicines', payload);
-      } else {
-        await api.put(`/inventory/medicines/${med.id}`, payload);
-      }
-      
-      // Refresh to get actual IDs and clean state
+      await saveSingleRow(med);
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to save row", error);
-      alert("Error saving medicine");
+      alert(error.message || "Error saving medicine");
     } finally {
       setLoadingRowId(null);
+    }
+  };
+
+  const handleSaveAll = async () => {
+    const dirtyRows = medicines.filter(m => m.isDirty);
+    if (dirtyRows.length === 0) return;
+
+    setIsSavingAll(true);
+    let successCount = 0;
+    const errors: string[] = [];
+
+    for (const med of dirtyRows) {
+      try {
+        await saveSingleRow(med);
+        successCount++;
+      } catch (err: any) {
+        errors.push(err.message || `Failed to save ${med.name}`);
+      }
+    }
+
+    setIsSavingAll(false);
+    fetchData();
+
+    if (errors.length > 0) {
+      alert(`Saved ${successCount} items. Errors:\n${errors.join('\n')}`);
     }
   };
 
@@ -138,9 +233,57 @@ export default function MedicalInventory() {
     }
   };
 
+  const handleStockAdjustment = async () => {
+    if (!adjustQty || !adjustReason) return alert("Fill all fields");
+    setLoadingRowId(activeMedicine.id);
+    try {
+      await api.post('/adjustments', {
+        medicineId: activeMedicine.id,
+        adjustmentType: adjustType,
+        quantity: adjustQty,
+        reason: adjustReason
+      });
+      alert("Stock Adjusted!");
+      setAdjustModalOpen(false);
+      fetchData();
+    } catch (err: any) {
+      alert("Failed to adjust stock: " + (err.response?.data?.message || err.message));
+    } finally {
+      setLoadingRowId(null);
+    }
+  };
+
+  const handlePurchase = async () => {
+    if (!purchaseQty || !purchaseTotalAmt) return alert("Fill required fields");
+    setLoadingRowId(activeMedicine.id);
+    try {
+      await api.post('/purchases', {
+        supplierId: activeMedicine.supplierId || "", // If empty, backend might fail, but we'll fix backend too
+        invoiceNo: `INV-${Date.now()}`,
+        items: [{
+          medicineId: activeMedicine.id,
+          batchNo: activeMedicine.batchNo,
+          expiryDate: activeMedicine.expiryDate,
+          quantity: parseInt(purchaseQty), // Treat this as strips purchased if tablet
+          freeQuantity: parseInt(purchaseFree),
+          purchasePrice: activeMedicine.purchasePrice,
+          mrp: activeMedicine.sellingPrice,
+          amount: parseFloat(purchaseTotalAmt)
+        }]
+      });
+      alert("Purchase Recorded!");
+      setPurchaseModalOpen(false);
+      fetchData();
+    } catch (err: any) {
+      alert("Failed to record purchase: " + (err.response?.data?.message || err.message));
+    } finally {
+      setLoadingRowId(null);
+    }
+  };
+
   const handleDownloadTemplate = () => {
-    const headers = "Name,Company,BatchNo,Stock,PurchasePrice,SellingPrice,ExpiryDate,SupplierName\n";
-    const sample = "Paracetamol 500mg,Glaxo,B-12345,100,2.50,5.00,2026-12-31,PharmaCorp\n";
+    const headers = "Name,Company,BatchNo,Stock,PurchasePrice,SellingPrice,ExpiryDate,SupplierName,ProductType,SaleUnit\n";
+    const sample = "Paracetamol 500mg,Glaxo,B-12345,100,2.50,5.00,2026-12-31,PharmaCorp,tablet,tablet\n";
     const blob = new Blob([headers + sample], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -177,20 +320,19 @@ export default function MedicalInventory() {
             if (h === 'sellingprice') obj.sellingPrice = vals[index];
             if (h === 'expirydate') obj.expiryDate = vals[index];
             if (h === 'suppliername') obj.supplierName = vals[index];
+            if (h === 'producttype') obj.productType = vals[index];
+            if (h === 'saleunit') obj.saleUnit = vals[index];
           });
           parsedMedicines.push(obj);
         }
 
         const res = await api.post('/inventory/medicines/bulk', { medicines: parsedMedicines });
-        alert(`Upload Complete!\nSuccess: ${res.data.successCount}\nErrors: ${res.data.errorCount}\n${res.data.errorCount > 0 ? 'Check console for error details.' : ''}`);
-        if(res.data.errors?.length) console.error("CSV Upload Errors:", res.data.errors);
-        
-        fetchData(); // Refresh the table
+        alert(`Upload Complete!\nSuccess: ${res.data.successCount}\nErrors: ${res.data.errorCount}`);
+        fetchData(); 
       } catch (err: any) {
         alert(`Error processing CSV: ${err.message}`);
       } finally {
         setIsUploadingCSV(false);
-        // Reset file input
         if (e.target) e.target.value = '';
       }
     };
@@ -200,6 +342,8 @@ export default function MedicalInventory() {
     };
     reader.readAsText(file);
   };
+
+  const dirtyCount = medicines.filter(m => m.isDirty).length;
 
   return (
     <div className="space-y-6">
@@ -229,6 +373,7 @@ export default function MedicalInventory() {
               <AlertTriangle className="w-6 h-6 mr-2" />
               Confirm Deletion
             </DialogTitle>
+            <DialogDescription className="hidden">Confirm deletion of medicine</DialogDescription>
           </DialogHeader>
           <div className="py-4 text-slate-600">
             Are you absolutely sure you want to permanently erase this medicine from the inventory? This action cannot be undone.
@@ -290,13 +435,20 @@ export default function MedicalInventory() {
         </div>
       )}
 
-      {/* SPREADSHEET TABLE */}
+      {/* DATABASE TABLE */}
       <Card className="border-2 border-slate-200 shadow-sm mt-8">
-        <CardHeader className="bg-slate-50 border-b border-slate-200 flex flex-row items-center justify-between">
-          <CardTitle className="text-lg text-slate-800">Medicine Database (Spreadsheet Mode)</CardTitle>
-          <div className="flex items-center space-x-3">
-            <Button variant="outline" onClick={handleDownloadTemplate} size="sm" className="text-slate-600 border-slate-300">
-              <Download className="w-4 h-4 mr-2" /> Template
+        <CardHeader className="bg-slate-50 border-b border-slate-200 flex flex-row items-center justify-between py-3">
+          <div className="flex items-center space-x-4">
+            <CardTitle className="text-lg text-slate-800">Medicine Database</CardTitle>
+            {dirtyCount > 0 && (
+              <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-amber-300">
+                {dirtyCount} unsaved changes
+              </span>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" onClick={handleDownloadTemplate} size="sm" className="text-slate-600 h-8">
+              <Download className="w-4 h-4 mr-1" /> Template
             </Button>
             <div className="relative">
               <input 
@@ -306,13 +458,19 @@ export default function MedicalInventory() {
                 onChange={handleFileUpload} 
                 disabled={isUploadingCSV}
               />
-              <Button size="sm" variant="secondary" className="bg-slate-200 hover:bg-slate-300 text-slate-800" disabled={isUploadingCSV}>
-                {isUploadingCSV ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-                {isUploadingCSV ? "Uploading..." : "Upload CSV"}
+              <Button size="sm" variant="secondary" className="bg-slate-200 hover:bg-slate-300 text-slate-800 h-8" disabled={isUploadingCSV}>
+                {isUploadingCSV ? <RefreshCw className="w-4 h-4 mr-1 animate-spin" /> : <Upload className="w-4 h-4 mr-1" />}
+                {isUploadingCSV ? "Uploading..." : "CSV"}
               </Button>
             </div>
-            <Button onClick={handleAddRow} size="sm" className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" /> Add Row
+            {dirtyCount > 0 && (
+              <Button onClick={handleSaveAll} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8" disabled={isSavingAll}>
+                {isSavingAll ? <RefreshCw className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+                Save All
+              </Button>
+            )}
+            <Button onClick={handleAddRow} size="sm" className="bg-blue-600 hover:bg-blue-700 h-8">
+              <Plus className="w-4 h-4 mr-1" /> Add Row
             </Button>
           </div>
         </CardHeader>
@@ -320,15 +478,16 @@ export default function MedicalInventory() {
           <Table className="min-w-[1200px]">
             <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableHead className="w-[200px]">Medicine Name *</TableHead>
-                <TableHead className="w-[150px]">Company</TableHead>
-                <TableHead className="w-[120px]">Batch No *</TableHead>
-                <TableHead className="w-[100px]">Stock *</TableHead>
-                <TableHead className="w-[120px]">Purch. (₹) *</TableHead>
-                <TableHead className="w-[120px]">Sell (₹) *</TableHead>
-                <TableHead className="w-[150px]">Expiry *</TableHead>
-                <TableHead className="w-[180px]">Supplier *</TableHead>
-                <TableHead className="w-[100px] text-center">Actions</TableHead>
+                <TableHead className="w-[180px]">Medicine Name *</TableHead>
+                <TableHead className="w-[100px]">Type</TableHead>
+                <TableHead className="w-[160px]">Unit / Config</TableHead>
+                <TableHead className="w-[100px]">Batch No *</TableHead>
+                <TableHead className="w-[140px]">Stock Ledger</TableHead>
+                <TableHead className="w-[110px]" title="Price per Strip for Tablets, otherwise per unit">Purch. (₹) *</TableHead>
+                <TableHead className="w-[110px]" title="Price per Strip for Tablets, otherwise per unit">Sell (₹) *</TableHead>
+                <TableHead className="w-[140px]">Expiry *</TableHead>
+                <TableHead className="w-[150px]">Supplier *</TableHead>
+                <TableHead className="w-[130px] text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -341,7 +500,7 @@ export default function MedicalInventory() {
                 }
                 return true;
               }).length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   {filterMode === 'ALL' ? 'No medicines. Click "Add Row" to start typing.' : 'No medicines match the selected filter.'}
                 </TableCell></TableRow>
               ) : (
@@ -359,41 +518,93 @@ export default function MedicalInventory() {
                       <Input 
                         value={item.name} 
                         onChange={(e) => handleChange(item.id, 'name', e.target.value)} 
-                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent" 
+                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2" 
                         placeholder="Name" 
                       />
                     </TableCell>
                     <TableCell className="p-1">
-                      <Input 
-                        value={item.company} 
-                        onChange={(e) => handleChange(item.id, 'company', e.target.value)} 
-                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent" 
-                        placeholder="Company" 
-                      />
+                      <select 
+                        value={item.productType} 
+                        onChange={(e) => handleChange(item.id, 'productType', e.target.value)}
+                        className="h-8 w-full border-transparent hover:border-slate-300 focus:ring-1 bg-transparent px-1 rounded-md text-sm"
+                      >
+                        <option value="tablet">Tablet</option>
+                        <option value="capsule">Capsule</option>
+                        <option value="syrup">Syrup</option>
+                        <option value="injection">Injection</option>
+                        <option value="cream">Cream</option>
+                        <option value="ointment">Ointment</option>
+                        <option value="drops">Drops</option>
+                        <option value="medical_device">Device</option>
+                      </select>
+                    </TableCell>
+                    <TableCell className="p-1">
+                      <div className="flex flex-col gap-1">
+                        <select 
+                          value={item.saleUnit} 
+                          onChange={(e) => handleChange(item.id, 'saleUnit', e.target.value)}
+                          className="h-7 w-full border-transparent hover:border-slate-300 focus:ring-1 bg-transparent px-1 rounded-md text-xs font-semibold"
+                        >
+                          {getValidUnitsForType(item.productType).map(u => (
+                            <option key={u.value} value={u.value}>{u.label}</option>
+                          ))}
+                        </select>
+                        {(item.productType === 'tablet' || item.productType === 'capsule') && (
+                          <div className="flex gap-1">
+                            <Input 
+                              type="number" value={item.stripsPerBox} onChange={(e) => handleChange(item.id, 'stripsPerBox', e.target.value)}
+                              className="h-6 w-full text-xs px-1" title="Strips per Box" placeholder="Str/Box"
+                            />
+                            <Input 
+                              type="number" value={item.unitsPerStrip} onChange={(e) => handleChange(item.id, 'unitsPerStrip', e.target.value)}
+                              className="h-6 w-full text-xs px-1" title="Units per Strip" placeholder="Units/Str"
+                            />
+                          </div>
+                        )}
+                        {item.productType === 'syrup' && (
+                          <Input 
+                            value={item.bottleVolume} onChange={(e) => handleChange(item.id, 'bottleVolume', e.target.value)}
+                            className="h-6 w-full text-xs px-1" title="Bottle Volume" placeholder="e.g. 100ml"
+                          />
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="p-1">
                       <Input 
                         value={item.batchNo} 
                         onChange={(e) => handleChange(item.id, 'batchNo', e.target.value)} 
-                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent" 
+                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2" 
                         placeholder="Batch" 
                       />
                     </TableCell>
-                    <TableCell className="p-1">
-                      <Input 
-                        type="number" 
-                        value={item.stock} 
-                        onChange={(e) => handleChange(item.id, 'stock', e.target.value)} 
-                        className={`h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent ${item.stock < 10 && item.stock !== '' ? 'text-red-600 font-bold' : ''}`} 
-                        placeholder="0" 
-                      />
+                    <TableCell className="p-1 text-center bg-slate-50 border-x border-slate-200">
+                      <div className="flex items-center justify-between px-1">
+                        <Input 
+                          type="number" 
+                          value={item.stock} 
+                          onChange={(e) => handleChange(item.id, 'stock', e.target.value)} 
+                          disabled={!item.isNew}
+                          className={`h-8 w-16 border-transparent focus-visible:ring-1 bg-transparent px-2 disabled:opacity-100 disabled:font-bold ${item.stock < item.minimumStockAlert && item.stock !== '' ? 'text-red-600' : 'text-slate-800'}`} 
+                          placeholder="0" 
+                        />
+                        {!item.isNew && (
+                          <div className="flex flex-col">
+                            <Button variant="ghost" size="icon" className="h-4 w-4 text-emerald-600 hover:text-emerald-800" title="Add Purchase" onClick={() => { setActiveMedicine(item); setPurchaseModalOpen(true); }}>
+                              <ShoppingCart className="w-3 h-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-4 w-4 text-orange-600 hover:text-orange-800 mt-1" title="Stock Adjustment" onClick={() => { setActiveMedicine(item); setAdjustModalOpen(true); }}>
+                              <ArrowLeftRight className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="p-1">
                       <Input 
                         type="number" step="0.01" 
                         value={item.purchasePrice} 
                         onChange={(e) => handleChange(item.id, 'purchasePrice', e.target.value)} 
-                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent" 
+                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2" 
                         placeholder="0.00" 
                       />
                     </TableCell>
@@ -402,7 +613,7 @@ export default function MedicalInventory() {
                         type="number" step="0.01" 
                         value={item.sellingPrice} 
                         onChange={(e) => handleChange(item.id, 'sellingPrice', e.target.value)} 
-                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent font-bold text-emerald-700" 
+                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2 font-bold text-emerald-700" 
                         placeholder="0.00" 
                       />
                     </TableCell>
@@ -411,14 +622,14 @@ export default function MedicalInventory() {
                         type="date" 
                         value={item.expiryDate} 
                         onChange={(e) => handleChange(item.id, 'expiryDate', e.target.value)} 
-                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent text-sm" 
+                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2 text-sm" 
                       />
                     </TableCell>
                     <TableCell className="p-1">
                       <Input 
                         value={item.supplierName} 
                         onChange={(e) => handleChange(item.id, 'supplierName', e.target.value)} 
-                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent" 
+                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2" 
                         placeholder="Supplier Name" 
                       />
                     </TableCell>
@@ -430,7 +641,7 @@ export default function MedicalInventory() {
                             size="icon" 
                             className="h-8 w-8 text-blue-600 hover:bg-blue-100" 
                             onClick={() => handleSaveRow(item)}
-                            disabled={loadingRowId === item.id}
+                            disabled={loadingRowId === item.id || isSavingAll}
                             title="Save Row"
                           >
                             {loadingRowId === item.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -441,7 +652,7 @@ export default function MedicalInventory() {
                           size="icon" 
                           className="h-8 w-8 text-red-600 hover:bg-red-100" 
                           onClick={() => confirmDelete(item.id, item.isNew)}
-                          disabled={loadingRowId === item.id}
+                          disabled={loadingRowId === item.id || isSavingAll}
                           title="Erase Row"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -455,7 +666,67 @@ export default function MedicalInventory() {
           </Table>
         </CardContent>
       </Card>
-      
+      {/* ADJUST STOCK MODAL */}
+      <Dialog open={adjustModalOpen} onOpenChange={setAdjustModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Stock Adjustment: {activeMedicine?.name}</DialogTitle>
+            <DialogDescription className="hidden">Adjust stock manually</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Adjustment Type</label>
+              <select className="w-full border rounded p-2 mt-1" value={adjustType} onChange={e => setAdjustType(e.target.value)}>
+                <option value="Addition">Addition (+)</option>
+                <option value="Deduction">Deduction (-)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Quantity (Base Units)</label>
+              <Input type="number" value={adjustQty} onChange={e => setAdjustQty(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Reason</label>
+              <Input value={adjustReason} onChange={e => setAdjustReason(e.target.value)} placeholder="e.g. Expired, Damaged, Found" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdjustModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleStockAdjustment} disabled={!!loadingRowId}>Save Adjustment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* PURCHASE LOG MODAL */}
+      <Dialog open={purchaseModalOpen} onOpenChange={setPurchaseModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Log Purchase: {activeMedicine?.name}</DialogTitle>
+            <DialogDescription className="hidden">Log a new purchase for this medicine</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-blue-50 p-3 rounded-md text-sm text-blue-800">
+              Note: For Tablets/Capsules, enter quantity in <strong>Strips</strong>. The system will convert it to total tablets.
+            </div>
+            <div>
+              <label className="text-sm font-medium">Quantity Purchased ({activeMedicine?.productType === 'tablet' || activeMedicine?.productType === 'capsule' ? 'Strips' : 'Units'})</label>
+              <Input type="number" value={purchaseQty} onChange={e => setPurchaseQty(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Free Quantity</label>
+              <Input type="number" value={purchaseFree} onChange={e => setPurchaseFree(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Total Amount Paid (₹)</label>
+              <Input type="number" value={purchaseTotalAmt} onChange={e => setPurchaseTotalAmt(e.target.value)} placeholder="0.00" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPurchaseModalOpen(false)}>Cancel</Button>
+            <Button onClick={handlePurchase} disabled={!!loadingRowId} className="bg-emerald-600 hover:bg-emerald-700">Record Purchase</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

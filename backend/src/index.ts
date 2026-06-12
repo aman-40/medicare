@@ -26,6 +26,8 @@ import inventoryRoutes from './routes/inventoryRoutes';
 import staffRoutes from './routes/staffRoutes';
 import medicinesRoutes from './routes/medicinesRoutes';
 import invoiceRoutes from './routes/invoiceRoutes';
+import purchaseRoutes from './routes/purchaseRoutes';
+import adjustmentRoutes from './routes/adjustmentRoutes';
 
 app.use(helmet());
 app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
@@ -56,6 +58,8 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/medicines', medicinesRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/purchases', purchaseRoutes);
+app.use('/api/adjustments', adjustmentRoutes);
 
 // Basic Route
 app.get('/api/health', (req, res) => {

@@ -158,14 +158,33 @@ model Medicine {
   batchNo       String
   purchasePrice Float
   sellingPrice  Float
+  purchaseDate  DateTime @default(now())
   gstPercent    Float    @default(0)
+  
+  productType   String   @default("tablet") // tablet, capsule, syrup, injection, cream, ointment, drops, medical_device
+  saleUnit      String   @default("piece") // tablet, capsule, bottle, vial, tube, piece
+  
+  boxes         Int?
+  stripsPerBox  Int?
+  unitsPerStrip Int?
+  totalUnits    Int?
+  
+  bottleVolume  String?
+  
   stock         Int
+  minimumStockAlert Int @default(10)
   expiryDate    DateTime
   supplierId    String
   supplier      Supplier @relation(fields: [supplierId], references: [id])
   invoiceItems  InvoiceItem[]
+  purchaseItems PurchaseItem[]
+  returnItems   ReturnItem[]
+  stockAdjustments StockAdjustment[]
   
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+  deletedAt     DateTime?
+  deletedBy     String?
 }
 
 model Supplier {
@@ -176,6 +195,7 @@ model Supplier {
   gstNumber String?
 
   medicines Medicine[]
+  purchases Purchase[]
 }
 
 model Invoice {
@@ -185,6 +205,7 @@ model Invoice {
   patient     Patient? @relation(fields: [patientId], references: [id])
   patientName String?
   mobileNumber String?
+  doctorName  String?
   subtotal    Float    @default(0)
   gstAmount   Float    @default(0)
   discount    Float    @default(0)
@@ -204,9 +225,91 @@ model InvoiceItem {
   medicineId  String?
   medicine    Medicine? @relation(fields: [medicineId], references: [id])
   productName String
-  quantity    Int
+  quantitySold Int     @default(1)
+  saleType     String  @default("piece")
+  unitConversionValue Int @default(1)
+  deductedStockUnits Int @default(1)
+  
   rate        Float
   gst         Float   @default(0)
   amount      Float
   total       Float   @default(0)
 }
+
+model Purchase {
+  id          String   @id @default(cuid())
+  purchaseNo  String   @unique
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  invoiceNo   String?
+  totalAmount Float
+  status      String   @default("Completed")
+  createdAt   DateTime @default(now())
+  
+  items       PurchaseItem[]
+}
+
+model PurchaseItem {
+  id          String   @id @default(cuid())
+  purchaseId  String
+  purchase    Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  medicineId  String
+  medicine    Medicine @relation(fields: [medicineId], references: [id])
+  batchNo     String
+  expiryDate  DateTime
+  quantity    Int
+  freeQuantity Int @default(0)
+  purchasePrice Float
+  mrp         Float
+  discount    Float @default(0)
+  gst         Float @default(0)
+  amount      Float
+}
+
+model Return {
+  id          String   @id @default(cuid())
+  returnNo    String   @unique
+  patientId   String?
+  patientName String?
+  totalAmount Float
+  reason      String?
+  createdAt   DateTime @default(now())
+  
+  items       ReturnItem[]
+}
+
+model ReturnItem {
+  id          String   @id @default(cuid())
+  returnId    String
+  return      Return   @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  medicineId  String
+  medicine    Medicine @relation(fields: [medicineId], references: [id])
+  quantity    Int
+  returnUnit  String   @default("piece")
+  unitConversionValue Int @default(1)
+  addedStockUnits Int @default(1)
+  refundAmount Float
+}
+
+model StockAdjustment {
+  id          String   @id @default(cuid())
+  medicineId  String
+  medicine    Medicine @relation(fields: [medicineId], references: [id])
+  adjustmentType String // "Addition" or "Deduction"
+  quantity    Int
+  reason      String
+  adjustedBy  String?
+  createdAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  actionType  String   // "INSERT", "UPDATE", "DELETE"
+  tableName   String
+  recordId    String
+  oldData     Json?
+  newData     Json?
+  timestamp   DateTime @default(now())
+}
+

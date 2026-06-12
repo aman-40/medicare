@@ -36,8 +36,8 @@ router.get('/:id', authenticate, async (req, res) => {
 // Generate an Invoice
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { patientName, mobileNumber, discount = 0, items, paymentMethod = 'CASH' } = req.body;
-    // items: Array of { medicineId, quantity, rate, gst, total }
+    const { patientName, mobileNumber, doctorName, discount = 0, items, paymentMethod = 'CASH' } = req.body;
+    // items: Array of { medicineId, productName, quantitySold, saleType, unitConversionValue, deductedStockUnits, rate, gst, total }
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'Items are required' });
@@ -49,8 +49,8 @@ router.post('/', authenticate, async (req, res) => {
       if (!med) {
         return res.status(400).json({ message: `Medicine not found for ID ${item.medicineId}` });
       }
-      if (med.stock < item.quantity) {
-        return res.status(400).json({ message: `Insufficient stock for ${med.name}. Available: ${med.stock}` });
+      if (med.stock < item.deductedStockUnits) {
+        return res.status(400).json({ message: `Insufficient stock for ${med.name}. Required: ${item.deductedStockUnits}, Available: ${med.stock}` });
       }
     }
 
@@ -59,8 +59,8 @@ router.post('/', authenticate, async (req, res) => {
     let gstAmount = 0;
 
     for (const item of items) {
-      subtotal += item.rate * item.quantity;
-      gstAmount += (item.rate * item.quantity) * (item.gst / 100);
+      subtotal += item.rate * item.quantitySold;
+      gstAmount += (item.rate * item.quantitySold) * (item.gst / 100);
     }
     
     const grandTotal = subtotal + gstAmount - discount;
@@ -71,7 +71,7 @@ router.post('/', authenticate, async (req, res) => {
       for (const item of items) {
         await tx.medicine.update({
           where: { id: item.medicineId },
-          data: { stock: { decrement: item.quantity } }
+          data: { stock: { decrement: parseInt(item.deductedStockUnits) } }
         });
       }
 
@@ -83,6 +83,7 @@ router.post('/', authenticate, async (req, res) => {
         data: {
           patientName: patientName || null,
           mobileNumber: mobileNumber || null,
+          doctorName: doctorName || null,
           invoiceNo,
           subtotal,
           gstAmount,
@@ -94,7 +95,10 @@ router.post('/', authenticate, async (req, res) => {
             create: items.map((item: any) => ({
               medicineId: item.medicineId,
               productName: item.productName || 'Medicine',
-              quantity: Number(item.quantity),
+              quantitySold: Number(item.quantitySold),
+              saleType: item.saleType,
+              unitConversionValue: Number(item.unitConversionValue),
+              deductedStockUnits: Number(item.deductedStockUnits),
               rate: Number(item.rate),
               gst: Number(item.gst),
               total: Number(item.total),
@@ -102,7 +106,7 @@ router.post('/', authenticate, async (req, res) => {
             }))
           }
         },
-        include: { items: true }
+        include: { items: { include: { medicine: true } } }
       });
 
       return invoice;

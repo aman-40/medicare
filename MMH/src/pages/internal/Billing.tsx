@@ -4,13 +4,15 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../../components/ui/dialog";
 import { Receipt, Plus, Trash2, Printer, Search, AlertCircle, Download } from "lucide-react";
 import api from "../../api/axios";
 
 export default function Billing() {
   const [patientName, setPatientName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
+  const [doctorName, setDoctorName] = useState("");
+  const [discount, setDiscount] = useState(0);
   
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -19,7 +21,6 @@ export default function Billing() {
   const [items, setItems] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [discount, setDiscount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("CASH");
 
   const [printData, setPrintData] = useState<any>(null);
@@ -81,34 +82,50 @@ export default function Billing() {
         alert("Cannot add more than available stock.");
       }
     } else {
+      let baseRate = medicine.sellingPrice;
+      if (medicine.productType === 'tablet' || medicine.productType === 'capsule') {
+        // If the price is per strip, calculate price per tablet
+        baseRate = medicine.sellingPrice / (medicine.unitsPerStrip || 1);
+      }
+
       setItems([...items, {
         medicineId: medicine.id,
-        productName: medicine.name,
+        productName: `${medicine.name} (${medicine.productType || 'Medicine'})`,
         batchNo: medicine.batchNo,
         quantity: 1,
-        rate: medicine.sellingPrice,
+        saleType: medicine.saleUnit || 'Piece',
+        unitConversionValue: 1,
+        baseRate: baseRate,
+        rate: baseRate,
         gst: medicine.gstPercent || 0,
-        total: medicine.sellingPrice + (medicine.sellingPrice * (medicine.gstPercent || 0) / 100),
-        maxStock: medicine.stock
+        total: baseRate + (baseRate * (medicine.gstPercent || 0) / 100),
+        maxStock: medicine.stock,
+        medicineData: medicine
       }]);
     }
     setSearchQuery("");
     setShowSuggestions(false);
   };
 
-  const updateItemQuantity = (index: number, qty: number, maxStock: number) => {
-    if (qty > maxStock) {
-      alert(`Only ${maxStock} items available in stock.`);
-      qty = maxStock;
-    }
-    if (qty < 1) qty = 1;
-    
+  const updateItemQuantity = (index: number, qty: number, saleType: string, unitConversionValue: number) => {
     const newItems = [...items];
-    const rate = newItems[index].rate;
-    const gst = newItems[index].gst;
+    const item = newItems[index];
+    
+    // Deducted stock = qty * unitConversionValue
+    const deductedStock = qty * unitConversionValue;
+    if (deductedStock > item.maxStock) {
+      alert(`Only ${item.maxStock} base units available in stock. You requested ${deductedStock}.`);
+      qty = Math.floor(item.maxStock / unitConversionValue);
+      if (qty < 1) qty = 1;
+    }
+    
+    const rate = item.baseRate * unitConversionValue;
     
     newItems[index].quantity = qty;
-    newItems[index].total = (rate * qty) + ((rate * qty) * (gst / 100));
+    newItems[index].saleType = saleType;
+    newItems[index].unitConversionValue = unitConversionValue;
+    newItems[index].rate = rate;
+    newItems[index].total = (rate * qty) + ((rate * qty) * (item.gst / 100));
     setItems(newItems);
   };
 
@@ -138,12 +155,16 @@ export default function Billing() {
       const payload = {
         patientName: patientName.trim(),
         mobileNumber: mobileNumber.trim(),
+        doctorName: doctorName.trim(),
         discount,
         paymentMethod,
         items: items.map(i => ({
           medicineId: i.medicineId,
           productName: i.productName,
-          quantity: i.quantity,
+          quantitySold: i.quantity,
+          saleType: i.saleType,
+          unitConversionValue: i.unitConversionValue,
+          deductedStockUnits: i.quantity * i.unitConversionValue,
           rate: i.rate,
           gst: i.gst,
           total: i.total
@@ -155,6 +176,7 @@ export default function Billing() {
       setItems([]);
       setPatientName("");
       setMobileNumber("");
+      setDoctorName("");
       setDiscount(0);
       setPaymentMethod("CASH");
       fetchInvoices();
@@ -234,6 +256,7 @@ export default function Billing() {
               setItems([]);
               setPatientName("");
               setMobileNumber("");
+              setDoctorName("");
               setDiscount(0);
           }}>
             New Bill
@@ -252,13 +275,21 @@ export default function Billing() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Patient Name</Label>
-                  <Input 
-                    value={patientName} 
-                    onChange={e => setPatientName(e.target.value)} 
-                    placeholder="Enter patient name..." 
-                  />
-                </div>
-                <div className="space-y-2">
+                    <Input 
+                      placeholder="e.g. John Doe" 
+                      value={patientName} 
+                      onChange={(e) => setPatientName(e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Doctor Name (Optional)</Label>
+                    <Input 
+                      placeholder="e.g. Dr. Smith" 
+                      value={doctorName} 
+                      onChange={(e) => setDoctorName(e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
                   <Label>Mobile Number</Label>
                   <Input 
                     value={mobileNumber} 
@@ -296,7 +327,7 @@ export default function Billing() {
                         <div className="text-right">
                           <p className="font-bold text-blue-600">₹{med.sellingPrice.toFixed(2)}</p>
                           <p className={`text-xs ${med.stock > 10 ? 'text-green-600' : 'text-red-600 font-bold'}`}>
-                            Stock: {med.stock}
+                            Stock: {med.stock} {med.saleUnit || 'piece'}s
                           </p>
                         </div>
                       </div>
@@ -317,7 +348,8 @@ export default function Billing() {
                     <TableRow>
                       <TableHead>Medicine Name</TableHead>
                       <TableHead>Batch</TableHead>
-                      <TableHead className="w-24 text-center">Qty</TableHead>
+                      <TableHead className="w-24 text-center">Unit</TableHead>
+                      <TableHead className="w-20 text-center">Qty</TableHead>
                       <TableHead className="text-right">Rate (₹)</TableHead>
                       <TableHead className="text-right">GST %</TableHead>
                       <TableHead className="text-right">Total (₹)</TableHead>
@@ -338,13 +370,35 @@ export default function Billing() {
                           <TableCell className="font-medium">{item.productName}</TableCell>
                           <TableCell className="text-xs text-slate-500">{item.batchNo}</TableCell>
                           <TableCell>
+                            <select 
+                              className="border-slate-200 rounded-md text-xs p-1 w-full"
+                              value={`${item.saleType}|${item.unitConversionValue}`}
+                              onChange={(e) => {
+                                const [type, conv] = e.target.value.split('|');
+                                updateItemQuantity(index, item.quantity, type, parseInt(conv) || 1);
+                              }}
+                            >
+                              <option value="Piece|1">Piece</option>
+                              {item.medicineData?.productType === 'tablet' || item.medicineData?.productType === 'capsule' ? (
+                                <>
+                                  <option value="Tablet/Capsule|1">Tablet/Capsule</option>
+                                  <option value={`Strip|${item.medicineData.unitsPerStrip || 1}`}>Strip ({item.medicineData.unitsPerStrip || 1})</option>
+                                  <option value={`Box|${(item.medicineData.stripsPerBox || 1) * (item.medicineData.unitsPerStrip || 1)}`}>Box</option>
+                                </>
+                              ) : null}
+                              {item.medicineData?.productType === 'syrup' && <option value="Bottle|1">Bottle</option>}
+                              {item.medicineData?.productType === 'injection' && <option value="Vial|1">Vial</option>}
+                              {item.medicineData?.productType === 'cream' && <option value="Tube|1">Tube</option>}
+                            </select>
+                          </TableCell>
+                          <TableCell>
                             <Input 
                               type="number" 
                               min="1" 
-                              max={item.maxStock}
+                              step="1"
                               value={item.quantity}
-                              onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1, item.maxStock)}
-                              className="w-20 text-center mx-auto"
+                              onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1, item.saleType, item.unitConversionValue)}
+                              className="w-16 text-center mx-auto p-1 h-8"
                             />
                           </TableCell>
                           <TableCell className="text-right">{item.rate.toFixed(2)}</TableCell>
@@ -447,55 +501,87 @@ export default function Billing() {
       </div>
 
       {/* Thermal Receipt Print Layout (Hidden unless printing) */}
-      <div className="hidden print:block absolute top-0 left-0 w-[80mm] bg-white text-black text-sm font-mono leading-tight">
+      <div className="hidden print:block absolute top-0 left-0 w-[148mm] bg-white text-black text-sm font-sans leading-snug p-4 border border-slate-300">
         {printData && (
-          <div className="p-2 border-b-2 border-dashed border-black pb-4 mb-4">
-            <div className="text-center mb-4">
-              <h1 className="text-xl font-bold uppercase mb-1">Manoj Medical Hall</h1>
-              <p className="text-xs">Makhdumpur Dih, Makhdumpur</p>
-              <p className="text-xs">Jehanabad, Bihar 804422</p>
-              <p className="text-xs">Ph: +91 8340508210</p>
-            </div>
-            
-            <div className="border-t border-b border-dashed border-black py-2 mb-4 space-y-1">
-              <p><strong>Invoice:</strong> {printData.invoiceNo}</p>
-              <p><strong>Date:</strong> {new Date(printData.createdAt).toLocaleString()}</p>
-              <p><strong>Patient:</strong> {printData.patientName || printData.patient?.name || 'Walk-in'}</p>
-              {printData.mobileNumber && <p><strong>Mobile:</strong> {printData.mobileNumber}</p>}
+          <div>
+            <div className="flex justify-between items-start mb-2">
+              <div className="text-xs font-semibold leading-tight">
+                <p>DL No. 12345678RRTT</p>
+                <p>RLF 12345678RRTT</p>
+              </div>
+              <div className="text-xs font-semibold text-right leading-tight">
+                <p>Mo. 8340508210</p>
+                <p>9123456789</p>
+              </div>
             </div>
 
-            <table className="w-full mb-4 text-xs">
+            <div className="text-center mb-4">
+              <h1 className="text-2xl font-black tracking-tight uppercase">MANOJ MEDICAL HALL</h1>
+              <p className="text-sm font-semibold border-b border-black inline-block pb-0.5 mt-1">
+                Makhdumpur Dih, Makhdumpur, Jehanabad, Bihar 804422
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-4 text-xs font-medium">
+              <div className="flex"><span className="w-12">No.</span> <span className="border-b border-dashed border-slate-400 flex-1">{printData.invoiceNo}</span></div>
+              <div className="flex"><span className="w-12 text-right pr-2">Date</span> <span className="border-b border-dashed border-slate-400 flex-1">{new Date(printData.createdAt).toLocaleDateString()}</span></div>
+              
+              <div className="col-span-2 flex mt-1"><span className="whitespace-nowrap mr-2">Sold to Shree</span> <span className="border-b border-dashed border-slate-400 flex-1">{printData.patientName || printData.patient?.name || 'Walk-in'}</span></div>
+              
+              <div className="col-span-2 flex mt-1"><span className="whitespace-nowrap mr-2">Add & Mo.</span> <span className="border-b border-dashed border-slate-400 flex-1">{printData.mobileNumber || ''}</span></div>
+              
+              <div className="col-span-2 flex mt-1"><span className="whitespace-nowrap mr-2">Prescribe by Dr.</span> <span className="border-b border-dashed border-slate-400 flex-1">{printData.doctorName || ''}</span></div>
+            </div>
+
+            <table className="w-full mb-2 text-xs border border-black text-center">
               <thead>
                 <tr className="border-b border-black">
-                  <th className="text-left pb-1">Item</th>
-                  <th className="text-right pb-1">Qty</th>
-                  <th className="text-right pb-1">Amt</th>
+                  <th className="border-r border-black p-1 font-semibold w-12">Qnt.</th>
+                  <th className="border-r border-black p-1 font-semibold text-left">Particulars</th>
+                  <th className="border-r border-black p-1 font-semibold w-24">Company<br/>Name</th>
+                  <th className="border-r border-black p-1 font-semibold w-24">Batch No./<br/>Ex. Date</th>
+                  <th className="p-1 font-semibold w-20">Amount</th>
                 </tr>
               </thead>
               <tbody>
-                {printData.items?.map((item: any) => (
-                  <tr key={item.id}>
-                    <td className="py-1 pr-2">{item.productName}</td>
-                    <td className="text-right py-1 align-top">{item.quantity}</td>
-                    <td className="text-right py-1 align-top">{(item.total || item.amount).toFixed(2)}</td>
+                {printData.items?.map((item: any, i: number) => (
+                  <tr key={item.id} className={i < (printData.items.length - 1) ? "border-b border-slate-300" : ""}>
+                    <td className="border-r border-black py-1 px-1 align-top">{item.quantitySold || item.quantity} {item.saleType || ''}</td>
+                    <td className="border-r border-black py-1 px-1 text-left align-top font-medium">{item.productName.split('(')[0]}</td>
+                    <td className="border-r border-black py-1 px-1 align-top break-all">{item.medicine?.company || ''}</td>
+                    <td className="border-r border-black py-1 px-1 align-top">{item.medicine?.batchNo || ''}<br/>{item.medicine?.expiryDate ? new Date(item.medicine.expiryDate).toLocaleDateString() : ''}</td>
+                    <td className="py-1 px-1 align-top text-right">{(item.total || item.amount).toFixed(2)}</td>
+                  </tr>
+                ))}
+                {/* Empty rows to fill space */}
+                {Array.from({ length: Math.max(0, 8 - (printData.items?.length || 0)) }).map((_, i) => (
+                  <tr key={`empty-${i}`}>
+                    <td className="border-r border-black py-3 px-1"></td>
+                    <td className="border-r border-black py-3 px-1"></td>
+                    <td className="border-r border-black py-3 px-1"></td>
+                    <td className="border-r border-black py-3 px-1"></td>
+                    <td className="py-3 px-1"></td>
                   </tr>
                 ))}
               </tbody>
             </table>
 
-            <div className="border-t border-dashed border-black pt-2 space-y-1 text-right">
-              <p>Subtotal: {printData.subtotal.toFixed(2)}</p>
-              <p>GST: {printData.gstAmount.toFixed(2)}</p>
-              {printData.discount > 0 && <p>Discount: -{printData.discount.toFixed(2)}</p>}
-              <p>Payment: {printData.paymentMethod || 'CASH'}</p>
-              <p className="text-lg font-bold mt-2 pt-2 border-t border-black">
-                TOTAL: ₹{(printData.grandTotal || printData.totalAmount).toFixed(2)}
-              </p>
+            <div className="flex text-xs font-semibold border border-black mb-4">
+              <div className="flex-1 text-right p-1 border-r border-black pt-1">
+                {printData.discount > 0 && <span className="mr-4 font-normal">Discount: -{printData.discount.toFixed(2)}</span>}
+                Total
+              </div>
+              <div className="w-20 p-1 text-right pt-1 font-bold">
+                {(printData.grandTotal || printData.totalAmount).toFixed(2)}
+              </div>
             </div>
 
-            <div className="text-center mt-6 pt-4 border-t border-dashed border-black text-xs">
-              <p className="font-bold">Thank You for visiting!</p>
-              <p className="mt-1">For appointments, please call.</p>
+            <div className="flex justify-between items-end mt-8 text-xs font-semibold">
+              <div>बिका हुआ दवाई वापस नहीं होगी ।</div>
+              <div className="text-center">
+                <p className="mb-6">Proprietor</p>
+                <p>Manoj Kumar</p>
+              </div>
             </div>
           </div>
         )}
@@ -505,6 +591,7 @@ export default function Billing() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Export Invoice History</DialogTitle>
+            <DialogDescription className="hidden">Export history to CSV</DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="space-y-2">

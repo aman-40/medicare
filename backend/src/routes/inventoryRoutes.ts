@@ -64,10 +64,24 @@ router.get('/expiry', authenticate, async (req, res) => {
   }
 });
 
+// Get Audit Logs
+router.get('/audit-logs', authenticate, async (req, res) => {
+  try {
+    const logs = await prisma.auditLog.findMany({
+      orderBy: { timestamp: 'desc' },
+      take: 500
+    });
+    res.json(logs);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch audit logs' });
+  }
+});
+
 // Get All Medicines
 router.get('/medicines', authenticate, async (req, res) => {
   try {
     const medicines = await prisma.medicine.findMany({
+      where: { deletedAt: null },
       include: { supplier: true },
       orderBy: { createdAt: 'desc' }
     });
@@ -115,9 +129,17 @@ router.post('/medicines/bulk', authenticate, async (req, res) => {
             batchNo: med.batchNo,
             purchasePrice: parseFloat(med.purchasePrice),
             sellingPrice: parseFloat(med.sellingPrice),
+            purchaseDate: med.purchaseDate ? new Date(med.purchaseDate) : new Date(),
             stock: parseInt(med.stock),
             expiryDate: new Date(med.expiryDate),
-            supplierId: supplier.id
+            supplierId: supplier.id,
+            productType: med.productType || 'tablet',
+            saleUnit: med.saleUnit || 'piece',
+            boxes: med.boxes ? parseInt(med.boxes) : null,
+            stripsPerBox: med.stripsPerBox ? parseInt(med.stripsPerBox) : null,
+            unitsPerStrip: med.unitsPerStrip ? parseInt(med.unitsPerStrip) : null,
+            totalUnits: med.totalUnits ? parseInt(med.totalUnits) : null,
+            bottleVolume: med.bottleVolume || null,
           }
         });
         successCount++;
@@ -142,8 +164,9 @@ router.post('/medicines/bulk', authenticate, async (req, res) => {
 router.post('/medicines', authenticate, async (req, res) => {
   try {
     const { 
-      name, company, batchNo, purchasePrice, sellingPrice, stock, expiryDate, 
-      supplierName, supplierPhone 
+      name, genericName, company, batchNo, purchasePrice, sellingPrice, purchaseDate, stock, expiryDate, 
+      supplierName, supplierPhone, minimumStockAlert,
+      productType, saleUnit, boxes, stripsPerBox, unitsPerStrip, totalUnits, bottleVolume
     } = req.body;
 
     // Find or Create Supplier
@@ -160,18 +183,45 @@ router.post('/medicines', authenticate, async (req, res) => {
       });
     }
 
-    const medicine = await prisma.medicine.create({
-      data: {
-        name,
-        company,
-        batchNo,
-        purchasePrice: parseFloat(purchasePrice),
-        sellingPrice: parseFloat(sellingPrice),
-        stock: parseInt(stock),
-        expiryDate: new Date(expiryDate),
-        supplierId: supplier.id
-      },
-      include: { supplier: true }
+    const medicine = await prisma.$transaction(async (tx) => {
+      const createdMed = await tx.medicine.create({
+        data: {
+          name,
+          genericName: genericName || null,
+          company,
+          batchNo,
+          purchasePrice: parseFloat(purchasePrice),
+          sellingPrice: parseFloat(sellingPrice),
+          purchaseDate: purchaseDate ? new Date(purchaseDate) : new Date(),
+          stock: parseInt(stock),
+          minimumStockAlert: minimumStockAlert ? parseInt(minimumStockAlert) : 10,
+          expiryDate: new Date(expiryDate),
+          supplierId: supplier.id,
+          productType: productType || 'tablet',
+          saleUnit: saleUnit || 'piece',
+          boxes: boxes ? parseInt(boxes) : null,
+          stripsPerBox: stripsPerBox ? parseInt(stripsPerBox) : null,
+          unitsPerStrip: unitsPerStrip ? parseInt(unitsPerStrip) : null,
+          totalUnits: totalUnits ? parseInt(totalUnits) : null,
+          bottleVolume: bottleVolume || null,
+        },
+        include: { supplier: true }
+      });
+
+      // Record initial stock transaction
+      if (parseInt(stock) > 0) {
+        await tx.stockAdjustment.create({
+          data: {
+            medicineId: createdMed.id,
+            adjustmentType: "Addition",
+            quantity: parseInt(stock),
+            reason: "Initial Stock Setup",
+            adjustedBy: (req as any).user?.id || "System"
+          }
+        });
+      }
+
+      return createdMed;
     });
 
     res.status(201).json(medicine);
@@ -186,9 +236,11 @@ router.put('/medicines/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     const { 
-      name, company, batchNo, purchasePrice, sellingPrice, stock, expiryDate, 
-      supplierName, supplierPhone 
+      name, genericName, company, batchNo, purchasePrice, sellingPrice, purchaseDate, expiryDate, 
+      supplierName, supplierPhone, minimumStockAlert,
+      productType, saleUnit, boxes, stripsPerBox, unitsPerStrip, bottleVolume
     } = req.body;
+    // NOTE: 'stock' and 'totalUnits' are intentionally excluded because stock must be modified via transactions.
 
     // Find or Create Supplier
     let supplier = await prisma.supplier.findFirst({
@@ -208,13 +260,21 @@ router.put('/medicines/:id', authenticate, async (req, res) => {
       where: { id },
       data: {
         name,
+        genericName: genericName || null,
         company,
         batchNo,
         purchasePrice: parseFloat(purchasePrice),
         sellingPrice: parseFloat(sellingPrice),
-        stock: parseInt(stock),
+        purchaseDate: purchaseDate ? new Date(purchaseDate) : new Date(),
+        minimumStockAlert: minimumStockAlert ? parseInt(minimumStockAlert) : 10,
         expiryDate: new Date(expiryDate),
-        supplierId: supplier.id
+        supplierId: supplier.id,
+        productType: productType || 'tablet',
+        saleUnit: saleUnit || 'piece',
+        boxes: boxes ? parseInt(boxes) : null,
+        stripsPerBox: stripsPerBox ? parseInt(stripsPerBox) : null,
+        unitsPerStrip: unitsPerStrip ? parseInt(unitsPerStrip) : null,
+        bottleVolume: bottleVolume || null,
       },
       include: { supplier: true }
     });
@@ -230,10 +290,14 @@ router.put('/medicines/:id', authenticate, async (req, res) => {
 router.delete('/medicines/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.medicine.delete({
-      where: { id }
+    await prisma.medicine.update({
+      where: { id },
+      data: { 
+        deletedAt: new Date(),
+        deletedBy: (req as any).user?.id || "System"
+      }
     });
-    res.json({ message: 'Medicine deleted successfully' });
+    res.json({ message: 'Medicine soft deleted successfully' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to delete medicine' });

@@ -13,7 +13,8 @@ import {
   LogOut,
   ShieldCheck,
   UserCircle,
-  Menu
+  Menu,
+  FileBarChart
 } from "lucide-react";
 
 export default function InternalLayout() {
@@ -49,6 +50,7 @@ export default function InternalLayout() {
     { name: 'Optical Orders', path: '/admin/optical-orders', icon: ShoppingCart, roles: ['ADMIN', 'PHARMACIST', 'OPTOMETRIST'] },
     { name: 'Inventory', path: '/admin/inventory', icon: Pill, roles: ['ADMIN', 'PHARMACIST'] },
     { name: 'Billing', path: '/admin/billing', icon: Receipt, roles: ['ADMIN', 'RECEPTIONIST', 'PHARMACIST'] },
+    { name: 'Reports', path: '/admin/reports', icon: FileBarChart, roles: ['ADMIN', 'PHARMACIST'] },
     { name: 'Staff', path: '/admin/staff', icon: ShieldCheck, roles: ['ADMIN'] },
   ];
 

@@ -24,6 +24,7 @@ export const router = createBrowserRouter([
       { path: "optical-orders", async lazy() { let { default: Component } = await import("../pages/internal/OpticalOrders"); return { Component }; } },
       { path: "inventory", async lazy() { let { default: Component } = await import("../pages/internal/MedicalInventory"); return { Component }; } },
       { path: "billing", async lazy() { let { default: Component } = await import("../pages/internal/Billing"); return { Component }; } },
+      { path: "reports", async lazy() { let { default: Component } = await import("../pages/internal/Reports"); return { Component }; } },
       { path: "staff", async lazy() { let { default: Component } = await import("../pages/internal/StaffManagement"); return { Component }; } },
     ]
   }
