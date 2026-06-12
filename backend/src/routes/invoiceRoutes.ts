@@ -56,14 +56,14 @@ router.post('/', authenticate, async (req, res) => {
 
     // Calculate totals based on submitted items
     let subtotal = 0;
-    let gstAmount = 0;
+    let itemDiscounts = 0;
 
     for (const item of items) {
       subtotal += item.rate * item.quantitySold;
-      gstAmount += (item.rate * item.quantitySold) * (item.gst / 100);
+      itemDiscounts += Number(item.discount) || 0;
     }
     
-    const grandTotal = subtotal + gstAmount - discount;
+    const grandTotal = subtotal - itemDiscounts - discount;
 
     // Perform inside a transaction: reduce stock + create invoice
     const newInvoice = await prisma.$transaction(async (tx) => {
@@ -86,8 +86,8 @@ router.post('/', authenticate, async (req, res) => {
           doctorName: doctorName || null,
           invoiceNo,
           subtotal,
-          gstAmount,
-          discount: Number(discount),
+          gstAmount: 0, // Kept for backwards compatibility
+          discount: Number(discount) + itemDiscounts, // Total discount = global discount + item discounts
           grandTotal,
           totalAmount: grandTotal, // for backwards compatibility with schema
           paymentMethod,
@@ -100,7 +100,8 @@ router.post('/', authenticate, async (req, res) => {
               unitConversionValue: Number(item.unitConversionValue),
               deductedStockUnits: Number(item.deductedStockUnits),
               rate: Number(item.rate),
-              gst: Number(item.gst),
+              gst: 0, // backwards compatibility
+              discount: Number(item.discount) || 0,
               total: Number(item.total),
               amount: Number(item.total) // backwards compatibility
             }))

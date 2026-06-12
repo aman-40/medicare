@@ -231,7 +231,8 @@ model InvoiceItem {
   deductedStockUnits Int @default(1)
   
   rate        Float
-  gst         Float   @default(0)
+  gst         Float   @default(0) // Kept for backwards compatibility
+  discount    Float   @default(0)
   amount      Float
   total       Float   @default(0)
 }

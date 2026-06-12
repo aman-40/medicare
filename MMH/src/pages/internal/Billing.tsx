@@ -97,8 +97,8 @@ export default function Billing() {
         unitConversionValue: 1,
         baseRate: baseRate,
         rate: baseRate,
-        gst: medicine.gstPercent || 0,
-        total: baseRate + (baseRate * (medicine.gstPercent || 0) / 100),
+        discount: 0,
+        total: baseRate,
         maxStock: medicine.stock,
         medicineData: medicine
       }]);
@@ -125,7 +125,17 @@ export default function Billing() {
     newItems[index].saleType = saleType;
     newItems[index].unitConversionValue = unitConversionValue;
     newItems[index].rate = rate;
-    newItems[index].total = (rate * qty) + ((rate * qty) * (item.gst / 100));
+    
+    const discountAmt = newItems[index].discount || 0;
+    newItems[index].total = (rate - discountAmt) * qty;
+    setItems(newItems);
+  };
+
+  const updateItemDiscount = (index: number, discountAmt: number) => {
+    const newItems = [...items];
+    const item = newItems[index];
+    newItems[index].discount = discountAmt;
+    newItems[index].total = (item.rate - discountAmt) * item.quantity;
     setItems(newItems);
   };
 
@@ -138,12 +148,13 @@ export default function Billing() {
     return items.reduce((acc, item) => acc + (item.rate * item.quantity), 0);
   };
 
-  const calculateGST = () => {
-    return items.reduce((acc, item) => acc + ((item.rate * item.quantity) * (item.gst / 100)), 0);
+  const calculateTotalDiscount = () => {
+    const itemDiscounts = items.reduce((acc, item) => acc + ((item.discount || 0) * item.quantity), 0);
+    return itemDiscounts + discount; // include global discount if any
   };
 
   const calculateGrandTotal = () => {
-    return calculateSubtotal() + calculateGST() - discount;
+    return calculateSubtotal() - calculateTotalDiscount();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -156,19 +167,19 @@ export default function Billing() {
         patientName: patientName.trim(),
         mobileNumber: mobileNumber.trim(),
         doctorName: doctorName.trim(),
-        discount,
+        discount: discount, // global discount
         paymentMethod,
-        items: items.map(i => ({
-          medicineId: i.medicineId,
-          productName: i.productName,
-          quantitySold: i.quantity,
-          saleType: i.saleType,
-          unitConversionValue: i.unitConversionValue,
-          deductedStockUnits: i.quantity * i.unitConversionValue,
-          rate: i.rate,
-          gst: i.gst,
-          total: i.total
-        }))
+        items: items.map(item => ({
+          medicineId: item.medicineId,
+          productName: item.productName,
+          quantitySold: item.quantity,
+          saleType: item.saleType,
+          unitConversionValue: item.unitConversionValue,
+          deductedStockUnits: item.quantity * item.unitConversionValue,
+          rate: item.rate,
+          discount: (item.discount || 0) * item.quantity,
+          total: item.total
+        })),
       };
 
       const res = await api.post('/invoices', payload);
@@ -351,15 +362,15 @@ export default function Billing() {
                       <TableHead className="w-24 text-center">Unit</TableHead>
                       <TableHead className="w-20 text-center">Qty</TableHead>
                       <TableHead className="text-right">Rate (₹)</TableHead>
-                      <TableHead className="text-right">GST %</TableHead>
-                      <TableHead className="text-right">Total (₹)</TableHead>
-                      <TableHead className="w-12"></TableHead>
+                      <TableHead className="w-[110px] text-right">Disc/Unit (₹)</TableHead>
+                      <TableHead className="w-[100px] text-right">Total</TableHead>
+                      <TableHead className="w-[80px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {items.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-slate-400">
+                        <TableCell colSpan={8} className="text-center py-8 text-slate-400">
                           <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
                           Search and add medicines to the bill
                         </TableCell>
@@ -402,8 +413,18 @@ export default function Billing() {
                             />
                           </TableCell>
                           <TableCell className="text-right">{item.rate.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{item.gst}%</TableCell>
-                          <TableCell className="text-right font-bold text-blue-600">{item.total.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            <Input 
+                              type="number" 
+                              min="0"
+                              value={item.discount || 0}
+                              onChange={(e) => updateItemDiscount(index, parseFloat(e.target.value) || 0)}
+                              className="w-20 text-right ml-auto h-8"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-slate-800">
+                            ₹{item.total.toFixed(2)}
+                          </TableCell>
                           <TableCell>
                             <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
                               <Trash2 className="w-4 h-4" />
@@ -422,12 +443,12 @@ export default function Billing() {
                     <span>Subtotal</span>
                     <span className="font-medium">₹{calculateSubtotal().toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>GST Amount</span>
-                    <span className="font-medium">₹{calculateGST().toFixed(2)}</span>
+                  <div className="flex justify-between items-center text-red-600 font-medium">
+                    <span>Total Discount</span>
+                    <span>- ₹{calculateTotalDiscount().toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-slate-600 items-center">
-                    <span>Discount</span>
+                    <span>Global Discount</span>
                     <Input 
                       type="number" 
                       min="0" 
@@ -540,6 +561,7 @@ export default function Billing() {
                   <th className="border-r border-black p-1 font-semibold text-left">Particulars</th>
                   <th className="border-r border-black p-1 font-semibold w-24">Company<br/>Name</th>
                   <th className="border-r border-black p-1 font-semibold w-24">Batch No./<br/>Ex. Date</th>
+                  <th className="border-r border-slate-300 p-2 text-right text-xs">Discount</th>
                   <th className="p-1 font-semibold w-20">Amount</th>
                 </tr>
               </thead>
