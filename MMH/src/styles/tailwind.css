@@ -1,4 +1,10 @@
 @import 'tailwindcss' source(none);
 @source '../**/*.{js,ts,jsx,tsx}';
 
+@theme {
+  --font-sans: "Roboto Mono", monospace;
+  --font-serif: "Roboto Mono", monospace;
+  --font-mono: "Roboto Mono", monospace;
+}
+
 @import 'tw-animate-css';

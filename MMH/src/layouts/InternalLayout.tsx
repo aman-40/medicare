@@ -24,13 +24,13 @@ export default function InternalLayout() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
-    
-    if (!token || !userStr) {
-      navigate('/login');
-    } else {
-      setUser(JSON.parse(userStr));
+    if (userStr) {
+      try {
+        setUser(JSON.parse(userStr));
+      } catch (e) {
+        navigate('/login');
+      }
     }
   }, [navigate]);
 
