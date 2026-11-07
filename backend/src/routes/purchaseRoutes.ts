@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/authMiddleware';
+import { generatePurchaseNumber } from '../utils/invoiceNumber';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -40,9 +41,8 @@ router.post('/', authenticate, async (req, res) => {
     let totalAmount = 0;
     
     const purchase = await prisma.$transaction(async (tx) => {
-      // Create Purchase record
-      const count = await tx.purchase.count();
-      const purchaseNo = `PUR-${10000 + count + 1}`;
+      // Create Purchase record with real sequential numbering (e.g. PUR-2026-0001)
+      const purchaseNo = await generatePurchaseNumber(tx);
 
       const newPurchase = await tx.purchase.create({
         data: {
@@ -85,7 +85,9 @@ router.post('/', authenticate, async (req, res) => {
         if (!medicine) continue;
 
         let multiplier = 1;
-        if (medicine.productType === 'tablet' || medicine.productType === 'capsule') {
+        if (medicine.saleUnit === 'box') {
+          multiplier = (medicine.stripsPerBox || 1) * (medicine.unitsPerStrip || 1);
+        } else if (medicine.saleUnit === 'strip' || medicine.productType === 'tablet' || medicine.productType === 'capsule') {
           multiplier = medicine.unitsPerStrip || 1;
         }
 

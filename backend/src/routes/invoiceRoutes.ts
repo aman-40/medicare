@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/authMiddleware';
+import { generateInvoiceNumber } from '../utils/invoiceNumber';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -75,9 +76,8 @@ router.post('/', authenticate, async (req, res) => {
         });
       }
 
-      // 2. Create Invoice
-      const count = await tx.invoice.count();
-      const invoiceNo = `INV-${10000 + count + 1}`;
+      // 2. Create Invoice with real bill numbering algorithm (e.g. INV-2026-0001)
+      const invoiceNo = await generateInvoiceNumber(tx);
 
       const invoice = await tx.invoice.create({
         data: {

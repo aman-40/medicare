@@ -138,6 +138,7 @@ router.post('/medicines/bulk', authenticate, async (req, res) => {
             batchNo: (med.batchNo && med.batchNo.trim()) ? med.batchNo.trim() : '-',
             purchasePrice: parseFloat(med.purchasePrice),
             sellingPrice: parseFloat(med.sellingPrice),
+            doctorPrice: med.doctorPrice !== undefined && med.doctorPrice !== '' ? parseFloat(med.doctorPrice) : parseFloat(med.sellingPrice),
             purchaseDate: med.purchaseDate ? new Date(med.purchaseDate) : new Date(),
             stock: parseInt(med.stock),
             expiryDate: new Date(med.expiryDate),
@@ -173,7 +174,7 @@ router.post('/medicines/bulk', authenticate, async (req, res) => {
 router.post('/medicines', authenticate, async (req, res) => {
   try {
     const { 
-      name, genericName, company, batchNo, purchasePrice, sellingPrice, purchaseDate, stock, expiryDate, 
+      name, genericName, company, batchNo, purchasePrice, sellingPrice, doctorPrice, purchaseDate, stock, expiryDate, 
       supplierName, supplierPhone, minimumStockAlert,
       productType, saleUnit, boxes, stripsPerBox, unitsPerStrip, totalUnits, bottleVolume
     } = req.body;
@@ -202,6 +203,7 @@ router.post('/medicines', authenticate, async (req, res) => {
           batchNo: (batchNo && batchNo.trim()) ? batchNo.trim() : '-',
           purchasePrice: parseFloat(purchasePrice),
           sellingPrice: parseFloat(sellingPrice),
+          doctorPrice: doctorPrice !== undefined && doctorPrice !== '' ? parseFloat(doctorPrice) : parseFloat(sellingPrice),
           purchaseDate: purchaseDate ? new Date(purchaseDate) : new Date(),
           stock: parseInt(stock),
           minimumStockAlert: minimumStockAlert ? parseInt(minimumStockAlert) : 10,
@@ -246,7 +248,7 @@ router.put('/medicines/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     const { 
-      name, genericName, company, batchNo, purchasePrice, sellingPrice, purchaseDate, expiryDate, 
+      name, genericName, company, batchNo, purchasePrice, sellingPrice, doctorPrice, purchaseDate, expiryDate, 
       supplierName, supplierPhone, minimumStockAlert,
       productType, saleUnit, boxes, stripsPerBox, unitsPerStrip, bottleVolume
     } = req.body;
@@ -276,6 +278,7 @@ router.put('/medicines/:id', authenticate, async (req, res) => {
         batchNo: (batchNo && batchNo.trim()) ? batchNo.trim() : '-',
         purchasePrice: parseFloat(purchasePrice),
         sellingPrice: parseFloat(sellingPrice),
+        doctorPrice: doctorPrice !== undefined && doctorPrice !== '' ? parseFloat(doctorPrice) : parseFloat(sellingPrice),
         purchaseDate: purchaseDate ? new Date(purchaseDate) : new Date(),
         minimumStockAlert: minimumStockAlert ? parseInt(minimumStockAlert) : 10,
         expiryDate: new Date(expiryDate),

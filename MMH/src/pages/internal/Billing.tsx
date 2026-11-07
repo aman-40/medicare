@@ -23,6 +23,7 @@ export default function Billing() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [pricingTier, setPricingTier] = useState<'CUSTOMER' | 'DOCTOR'>('CUSTOMER');
 
   const [printData, setPrintData] = useState<any>(null);
   
@@ -30,6 +31,53 @@ export default function Billing() {
   const [exportDays, setExportDays] = useState("7");
   
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // Helper to get unit options for a medicine
+  const getUnitOptions = (medicine: any) => {
+    const saleUnit = medicine?.saleUnit || 'piece';
+    const stripsPerBox = Number(medicine?.stripsPerBox) || 1;
+    const unitsPerStrip = Number(medicine?.unitsPerStrip) || 1;
+
+    if (saleUnit === 'box') {
+      return [
+        { label: `Box (${stripsPerBox} str × ${unitsPerStrip})`, value: 'box', conversion: stripsPerBox * unitsPerStrip },
+        { label: `Strip (${unitsPerStrip} tabs)`, value: 'strip', conversion: unitsPerStrip },
+        { label: 'Piece / Tab', value: 'piece', conversion: 1 },
+      ];
+    } else if (saleUnit === 'strip') {
+      return [
+        { label: `Strip (${unitsPerStrip} tabs)`, value: 'strip', conversion: unitsPerStrip },
+        { label: 'Piece / Tab', value: 'piece', conversion: 1 },
+      ];
+    } else {
+      return [
+        { label: 'Piece', value: 'piece', conversion: 1 },
+      ];
+    }
+  };
+
+  // Helper to calculate rate for a specific unit and tier
+  const calculateRate = (medicine: any, saleType: string, tier: 'CUSTOMER' | 'DOCTOR') => {
+    const customerBase = Number(medicine?.sellingPrice) || 0;
+    const doctorBase = (medicine?.doctorPrice !== null && medicine?.doctorPrice !== undefined && medicine?.doctorPrice !== '')
+      ? Number(medicine.doctorPrice)
+      : customerBase;
+
+    const basePrice = tier === 'DOCTOR' ? doctorBase : customerBase;
+    const saleUnit = medicine?.saleUnit || 'piece';
+    const stripsPerBox = Number(medicine?.stripsPerBox) || 1;
+    const unitsPerStrip = Number(medicine?.unitsPerStrip) || 1;
+
+    if (saleUnit === 'box') {
+      if (saleType === 'box') return basePrice;
+      if (saleType === 'strip') return Number((basePrice / stripsPerBox).toFixed(2));
+      if (saleType === 'piece') return Number((basePrice / (stripsPerBox * unitsPerStrip)).toFixed(2));
+    } else if (saleUnit === 'strip') {
+      if (saleType === 'strip') return basePrice;
+      if (saleType === 'piece') return Number((basePrice / unitsPerStrip).toFixed(2));
+    }
+    return basePrice;
+  };
 
   useEffect(() => {
     fetchInvoices();
@@ -72,34 +120,46 @@ export default function Billing() {
     }
   };
 
+  const handlePriceTierChange = (newTier: 'CUSTOMER' | 'DOCTOR') => {
+    setPricingTier(newTier);
+    // Recalculate rates for all existing items using their current unit
+    setItems(prev => prev.map(item => {
+      const newRate = calculateRate(item.medicineData, item.saleType, newTier);
+      return {
+        ...item,
+        tier: newTier,
+        rate: newRate,
+        total: (newRate - (item.discount || 0)) * item.quantity
+      };
+    }));
+  };
+
   const handleSelectMedicine = (medicine: any) => {
-    // Check if already exists in items
+    const unitOpts = getUnitOptions(medicine);
+    const defaultOpt = unitOpts[0];
+    const initialRate = calculateRate(medicine, defaultOpt.value, pricingTier);
+
     const existingIndex = items.findIndex(i => i.medicineId === medicine.id);
     if (existingIndex >= 0) {
-      const newItems = [...items];
-      if (newItems[existingIndex].quantity < medicine.stock) {
-        updateItemQuantity(existingIndex, newItems[existingIndex].quantity + 1, medicine.stock);
+      const existing = items[existingIndex];
+      const maxQty = Math.floor(medicine.stock / existing.unitConversionValue);
+      if (existing.quantity < maxQty) {
+        updateItemQuantity(existingIndex, existing.quantity + 1, existing.saleType, existing.unitConversionValue);
       } else {
-        alert("Cannot add more than available stock.");
+        alert(`Cannot add more than available stock (${medicine.stock} units).`);
       }
     } else {
-      let baseRate = medicine.sellingPrice;
-      if (medicine.productType === 'tablet' || medicine.productType === 'capsule') {
-        // If the price is per strip, calculate price per tablet
-        baseRate = medicine.sellingPrice / (medicine.unitsPerStrip || 1);
-      }
-
       setItems([...items, {
         medicineId: medicine.id,
         productName: `${medicine.name} (${medicine.productType || 'Medicine'})`,
         batchNo: medicine.batchNo,
         quantity: 1,
-        saleType: medicine.saleUnit || 'Piece',
-        unitConversionValue: 1,
-        baseRate: baseRate,
-        rate: baseRate,
+        saleType: defaultOpt.value,
+        unitConversionValue: defaultOpt.conversion,
+        tier: pricingTier,
+        rate: initialRate,
         discount: 0,
-        total: baseRate,
+        total: initialRate,
         maxStock: medicine.stock,
         medicineData: medicine
       }]);
@@ -108,27 +168,72 @@ export default function Billing() {
     setShowSuggestions(false);
   };
 
-  const updateItemQuantity = (index: number, qty: number, saleType: string, unitConversionValue: number) => {
+  const updateItemUnit = (index: number, newSaleType: string, newConversion: number) => {
     const newItems = [...items];
     const item = newItems[index];
+    const newRate = calculateRate(item.medicineData, newSaleType, item.tier || pricingTier);
     
-    // Deducted stock = qty * unitConversionValue
-    const deductedStock = qty * unitConversionValue;
+    // Check max stock with new conversion
+    const maxQty = Math.floor(item.maxStock / newConversion);
+    let qty = item.quantity;
+    if (qty > maxQty) {
+      qty = Math.max(1, maxQty);
+    }
+
+    newItems[index] = {
+      ...item,
+      saleType: newSaleType,
+      unitConversionValue: newConversion,
+      rate: newRate,
+      quantity: qty,
+      total: (newRate - (item.discount || 0)) * qty
+    };
+    setItems(newItems);
+  };
+
+  const updateItemTier = (index: number, newTier: 'CUSTOMER' | 'DOCTOR') => {
+    const newItems = [...items];
+    const item = newItems[index];
+    const newRate = calculateRate(item.medicineData, item.saleType, newTier);
+
+    newItems[index] = {
+      ...item,
+      tier: newTier,
+      rate: newRate,
+      total: (newRate - (item.discount || 0)) * item.quantity
+    };
+    setItems(newItems);
+  };
+
+  const updateItemRate = (index: number, manualRate: number) => {
+    const newItems = [...items];
+    const item = newItems[index];
+    newItems[index] = {
+      ...item,
+      rate: manualRate,
+      total: (manualRate - (item.discount || 0)) * item.quantity
+    };
+    setItems(newItems);
+  };
+
+  const updateItemQuantity = (index: number, qty: number, saleType?: string, unitConversionValue?: number) => {
+    const newItems = [...items];
+    const item = newItems[index];
+    const conv = unitConversionValue ?? item.unitConversionValue;
+    const st = saleType ?? item.saleType;
+    
+    const deductedStock = qty * conv;
     if (deductedStock > item.maxStock) {
       alert(`Only ${item.maxStock} base units available in stock. You requested ${deductedStock}.`);
-      qty = Math.floor(item.maxStock / unitConversionValue);
+      qty = Math.floor(item.maxStock / conv);
       if (qty < 1) qty = 1;
     }
     
-    const rate = item.baseRate * unitConversionValue;
-    
     newItems[index].quantity = qty;
-    newItems[index].saleType = saleType;
-    newItems[index].unitConversionValue = unitConversionValue;
-    newItems[index].rate = rate;
-    
+    newItems[index].saleType = st;
+    newItems[index].unitConversionValue = conv;
     const discountAmt = newItems[index].discount || 0;
-    newItems[index].total = (rate - discountAmt) * qty;
+    newItems[index].total = (newItems[index].rate - discountAmt) * qty;
     setItems(newItems);
   };
 
@@ -311,9 +416,39 @@ export default function Billing() {
                 </div>
               </div>
 
-              {/* Medicine Search Section */}
+              {/* Medicine Search Section & Pricing Tier Toggle */}
               <div className="space-y-2 relative" ref={searchRef}>
-                <Label>Search Medicine</Label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label>Search Medicine</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Price Mode:</span>
+                    <div className="inline-flex rounded-md shadow-xs" role="group">
+                      <button
+                        type="button"
+                        onClick={() => handlePriceTierChange('CUSTOMER')}
+                        className={`px-2.5 py-1 text-xs font-bold rounded-l-md border transition-all ${
+                          pricingTier === 'CUSTOMER'
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        Customer Price (MRP)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handlePriceTierChange('DOCTOR')}
+                        className={`px-2.5 py-1 text-xs font-bold rounded-r-md border transition-all ${
+                          pricingTier === 'DOCTOR'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        Doctor Price
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="relative">
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                   <Input 
@@ -339,6 +474,12 @@ export default function Billing() {
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="font-semibold text-slate-800">{med.name}</p>
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border capitalize">
+                                {med.productType || 'tablet'}
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase">
+                                {med.saleUnit || 'piece'}
+                              </span>
                               {exp.status === 'EXPIRED' && (
                                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white">
                                   EXPIRED
@@ -350,14 +491,19 @@ export default function Billing() {
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-slate-500">
-                              {med.brandName || med.genericName || med.company || 'Direct'} | Batch: {med.batchNo || 'N/A'}
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {med.brandName || med.genericName || med.company || 'Direct'} | Batch: {med.batchNo || '-'}
+                              {med.saleUnit === 'box' && ` (${med.stripsPerBox || 10} str × ${med.unitsPerStrip || 10} tabs/str)`}
+                              {med.saleUnit === 'strip' && ` (${med.unitsPerStrip || 10} tabs/strip)`}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-blue-600">₹{med.sellingPrice.toFixed(2)}</p>
+                            <div className="flex items-center gap-2 justify-end">
+                              <span className="text-xs font-semibold text-emerald-700">Cust: ₹{med.sellingPrice.toFixed(2)}</span>
+                              <span className="text-xs font-semibold text-blue-700">Dr: ₹{(med.doctorPrice || med.sellingPrice).toFixed(2)}</span>
+                            </div>
                             <p className={`text-xs ${med.stock > 10 ? 'text-green-600' : 'text-red-600 font-bold'}`}>
-                              Stock: {med.stock} {med.saleUnit || 'piece'}s
+                              Stock: {med.stock} units
                             </p>
                           </div>
                         </div>
@@ -379,79 +525,106 @@ export default function Billing() {
                     <TableRow>
                       <TableHead>Medicine Name</TableHead>
                       <TableHead>Batch</TableHead>
-                      <TableHead className="w-24 text-center">Unit</TableHead>
+                      <TableHead className="w-32 text-center">Unit</TableHead>
                       <TableHead className="w-20 text-center">Qty</TableHead>
-                      <TableHead className="text-right">Rate (₹)</TableHead>
-                      <TableHead className="w-[110px] text-right">Disc/Unit (₹)</TableHead>
+                      <TableHead className="w-24 text-center">Price Mode</TableHead>
+                      <TableHead className="w-24 text-right">Rate (₹)</TableHead>
+                      <TableHead className="w-[100px] text-right">Disc/Unit</TableHead>
                       <TableHead className="w-[100px] text-right">Total</TableHead>
-                      <TableHead className="w-[80px]"></TableHead>
+                      <TableHead className="w-[60px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {items.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-slate-400">
+                        <TableCell colSpan={9} className="text-center py-8 text-slate-400">
                           <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
                           Search and add medicines to the bill
                         </TableCell>
                       </TableRow>
                     ) : (
-                      items.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">{item.productName}</TableCell>
-                          <TableCell className="text-xs text-slate-500">{item.batchNo || 'N/A'}</TableCell>
-                          <TableCell>
-                            <select 
-                              className="border-slate-200 rounded-md text-xs p-1 w-full"
-                              value={`${item.saleType}|${item.unitConversionValue}`}
-                              onChange={(e) => {
-                                const [type, conv] = e.target.value.split('|');
-                                updateItemQuantity(index, item.quantity, type, parseInt(conv) || 1);
-                              }}
-                            >
-                              <option value="Piece|1">Piece</option>
-                              {item.medicineData?.productType === 'tablet' || item.medicineData?.productType === 'capsule' ? (
-                                <>
-                                  <option value="Tablet/Capsule|1">Tablet/Capsule</option>
-                                  <option value={`Strip|${item.medicineData.unitsPerStrip || 1}`}>Strip ({item.medicineData.unitsPerStrip || 1})</option>
-                                  <option value={`Box|${(item.medicineData.stripsPerBox || 1) * (item.medicineData.unitsPerStrip || 1)}`}>Box</option>
-                                </>
-                              ) : null}
-                              {item.medicineData?.productType === 'syrup' && <option value="Bottle|1">Bottle</option>}
-                              {item.medicineData?.productType === 'injection' && <option value="Vial|1">Vial</option>}
-                              {item.medicineData?.productType === 'cream' && <option value="Tube|1">Tube</option>}
-                            </select>
-                          </TableCell>
-                          <TableCell>
-                            <Input 
-                              type="number" 
-                              min="1" 
-                              step="1"
-                              value={item.quantity}
-                              onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1, item.saleType, item.unitConversionValue)}
-                              className="w-16 text-center mx-auto p-1 h-8"
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">{item.rate.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">
-                            <Input 
-                              type="number" 
-                              min="0"
-                              value={item.discount || 0}
-                              onChange={(e) => updateItemDiscount(index, parseFloat(e.target.value) || 0)}
-                              className="w-20 text-right ml-auto h-8"
-                            />
-                          </TableCell>
-                          <TableCell className="text-right font-medium text-slate-800">
-                            ₹{item.total.toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      items.map((item, index) => {
+                        const unitOpts = getUnitOptions(item.medicineData);
+                        return (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">
+                              <div>
+                                <span className="text-slate-800">{item.productName}</span>
+                                {item.medicineData?.saleUnit && (
+                                  <span className="ml-1.5 text-[10px] font-semibold text-slate-500 uppercase">
+                                    [{item.medicineData.saleUnit}]
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-500">{item.batchNo || 'N/A'}</TableCell>
+                            <TableCell>
+                              <select 
+                                className="border-slate-200 rounded-md text-xs p-1 w-full bg-white capitalize"
+                                value={item.saleType}
+                                onChange={(e) => {
+                                  const selectedOpt = unitOpts.find(o => o.value === e.target.value) || unitOpts[0];
+                                  updateItemUnit(index, selectedOpt.value, selectedOpt.conversion);
+                                }}
+                              >
+                                {unitOpts.map(opt => (
+                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                              </select>
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                type="number" 
+                                min="1" 
+                                step="1"
+                                value={item.quantity}
+                                onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)}
+                                className="w-16 text-center mx-auto p-1 h-8"
+                              />
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <button
+                                type="button"
+                                onClick={() => updateItemTier(index, item.tier === 'DOCTOR' ? 'CUSTOMER' : 'DOCTOR')}
+                                className={`px-2 py-0.5 text-[11px] font-bold rounded border transition-colors ${
+                                  item.tier === 'DOCTOR'
+                                    ? 'bg-blue-100 text-blue-800 border-blue-300'
+                                    : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                }`}
+                                title="Click to toggle Customer / Doctor price"
+                              >
+                                {item.tier === 'DOCTOR' ? 'Dr Rate' : 'Customer'}
+                              </button>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Input 
+                                type="number" 
+                                step="0.01"
+                                value={item.rate}
+                                onChange={(e) => updateItemRate(index, parseFloat(e.target.value) || 0)}
+                                className="w-20 text-right ml-auto h-8 p-1 font-semibold text-slate-800"
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Input 
+                                type="number" 
+                                min="0"
+                                value={item.discount || 0}
+                                onChange={(e) => updateItemDiscount(index, parseFloat(e.target.value) || 0)}
+                                className="w-16 text-right ml-auto h-8 p-1"
+                              />
+                            </TableCell>
+                            <TableCell className="text-right font-medium text-slate-800">
+                              ₹{item.total.toFixed(2)}
+                            </TableCell>
+                            <TableCell>
+                              <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>

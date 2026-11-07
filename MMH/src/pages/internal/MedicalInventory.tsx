@@ -39,27 +39,20 @@ export const getExpiryStatus = (dateStr: string) => {
   return { status: 'NORMAL' as const, label: 'Valid', subText: `${diffDays}d left`, days: diffDays };
 };
 
-const getValidUnitsForType = (type: string) => {
-  switch (type) {
-    case 'tablet':
-      return [{ value: 'tablet', label: 'Tablet' }, { value: 'piece', label: 'Piece' }];
-    case 'capsule':
-      return [{ value: 'capsule', label: 'Capsule' }, { value: 'piece', label: 'Piece' }];
-    case 'syrup':
-      return [{ value: 'bottle', label: 'Bottle' }];
-    case 'injection':
-      return [{ value: 'vial', label: 'Vial' }];
-    case 'cream':
-    case 'ointment':
-      return [{ value: 'tube', label: 'Tube' }];
-    case 'drops':
-      return [{ value: 'bottle', label: 'Bottle' }, { value: 'piece', label: 'Piece' }];
-    case 'medical_device':
-      return [{ value: 'piece', label: 'Piece' }];
-    default:
-      return [{ value: 'piece', label: 'Piece' }];
-  }
-};
+export const MEDICINE_TYPES = [
+  { value: 'tablet', label: 'Tablet' },
+  { value: 'capsule', label: 'Capsule' },
+  { value: 'ointment', label: 'Ointment' },
+  { value: 'syrup', label: 'Syrup' },
+  { value: 'drop', label: 'Drop' },
+  { value: 'other', label: 'Other' },
+];
+
+export const MEDICINE_UNITS = [
+  { value: 'strip', label: 'Strip' },
+  { value: 'piece', label: 'Piece' },
+  { value: 'box', label: 'Box' },
+];
 
 export default function MedicalInventory() {
   const [stats, setStats] = useState<any>(null);
@@ -109,13 +102,14 @@ export default function MedicalInventory() {
         minimumStockAlert: m.minimumStockAlert || 10,
         purchasePrice: m.purchasePrice,
         sellingPrice: m.sellingPrice,
+        doctorPrice: m.doctorPrice !== null && m.doctorPrice !== undefined ? m.doctorPrice : m.sellingPrice,
         purchaseDate: m.purchaseDate ? new Date(m.purchaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         expiryDate: new Date(m.expiryDate).toISOString().split('T')[0],
         supplierId: m.supplierId,
         supplierName: m.supplier?.name || '',
         supplierPhone: m.supplier?.phone || '',
         productType: m.productType || 'tablet',
-        saleUnit: m.saleUnit || 'piece',
+        saleUnit: m.saleUnit || (m.productType === 'tablet' || m.productType === 'capsule' ? 'strip' : 'piece'),
         stripsPerBox: m.stripsPerBox || '',
         unitsPerStrip: m.unitsPerStrip || '',
         bottleVolume: m.bottleVolume || '',
@@ -139,14 +133,15 @@ export default function MedicalInventory() {
       minimumStockAlert: 10,
       purchasePrice: '',
       sellingPrice: '',
+      doctorPrice: '',
       purchaseDate: new Date().toISOString().split('T')[0],
       expiryDate: '',
       supplierName: '',
       supplierPhone: '',
       productType: 'tablet',
-      saleUnit: 'tablet',
+      saleUnit: 'strip',
       stripsPerBox: 10,
-      unitsPerStrip: 15,
+      unitsPerStrip: 10,
       bottleVolume: '',
       isDirty: true,
       isNew: true
@@ -159,9 +154,10 @@ export default function MedicalInventory() {
       if (m.id === id) {
         const updated = { ...m, [field]: value, isDirty: true };
         if (field === 'productType') {
-          const validUnits = getValidUnitsForType(value).map(u => u.value);
-          if (!validUnits.includes(updated.saleUnit)) {
-            updated.saleUnit = validUnits[0];
+          if ((value === 'tablet' || value === 'capsule') && updated.saleUnit === 'piece') {
+            updated.saleUnit = 'strip';
+          } else if ((value === 'ointment' || value === 'syrup' || value === 'drop') && updated.saleUnit === 'strip') {
+            updated.saleUnit = 'piece';
           }
         }
         return updated;
@@ -172,7 +168,7 @@ export default function MedicalInventory() {
 
   const saveSingleRow = async (med: any) => {
     if (!med.name || med.stock === '' || !med.purchasePrice || !med.sellingPrice || !med.expiryDate) {
-      throw new Error(`Please fill required fields (Name, Stock, Purchase Price, Selling Price, Expiry Date) for ${med.name || 'new medicine'}.`);
+      throw new Error(`Please fill required fields (Name, Stock, Cost Price, Customer Price, Expiry Date) for ${med.name || 'new medicine'}.`);
     }
 
     const payload = {
@@ -182,18 +178,19 @@ export default function MedicalInventory() {
       batchNo: (med.batchNo && med.batchNo.trim()) ? med.batchNo.trim() : '-',
       stock: med.stock, // Only used when isNew is true to set initial stock
       minimumStockAlert: med.minimumStockAlert,
-      purchasePrice: med.purchasePrice,
-      sellingPrice: med.sellingPrice,
+      purchasePrice: parseFloat(med.purchasePrice),
+      sellingPrice: parseFloat(med.sellingPrice),
+      doctorPrice: med.doctorPrice !== '' && med.doctorPrice !== undefined ? parseFloat(med.doctorPrice) : parseFloat(med.sellingPrice),
       purchaseDate: med.purchaseDate,
       expiryDate: med.expiryDate,
       supplierId: med.supplierId,
       supplierName: (med.supplierName && med.supplierName.trim()) ? med.supplierName.trim() : 'General / Direct',
       supplierPhone: med.supplierPhone,
-      productType: med.productType,
-      saleUnit: med.saleUnit,
-      stripsPerBox: med.stripsPerBox,
-      unitsPerStrip: med.unitsPerStrip,
-      bottleVolume: med.bottleVolume
+      productType: med.productType || 'tablet',
+      saleUnit: med.saleUnit || 'strip',
+      stripsPerBox: med.stripsPerBox ? parseInt(med.stripsPerBox) : null,
+      unitsPerStrip: med.unitsPerStrip ? parseInt(med.unitsPerStrip) : null,
+      bottleVolume: med.bottleVolume || null
     };
 
     if (med.isNew) {
@@ -314,8 +311,8 @@ export default function MedicalInventory() {
   };
 
   const handleDownloadTemplate = () => {
-    const headers = "Name,Company,BatchNo,Stock,PurchasePrice,SellingPrice,ExpiryDate,SupplierName,ProductType,SaleUnit\n";
-    const sample = "Paracetamol 500mg,Glaxo,B-12345,100,2.50,5.00,2026-12-31,PharmaCorp,tablet,tablet\n";
+    const headers = "Name,Company,ProductType,SaleUnit,StripsPerBox,UnitsPerStrip,BatchNo,Stock,CostPrice,CustomerPrice,DoctorPrice,ExpiryDate,SupplierName\n";
+    const sample = "Paracetamol 500mg,Glaxo,tablet,strip,10,10,B-12345,100,15.00,25.00,20.00,2026-12-31,PharmaCorp\n";
     const blob = new Blob([headers + sample], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -348,13 +345,19 @@ export default function MedicalInventory() {
             if (h === 'company') obj.company = vals[index];
             if (h === 'batchno') obj.batchNo = vals[index] || '-';
             if (h === 'stock') obj.stock = vals[index];
-            if (h === 'purchaseprice') obj.purchasePrice = vals[index];
-            if (h === 'sellingprice') obj.sellingPrice = vals[index];
+            if (h === 'costprice' || h === 'purchaseprice' || h === 'cost') obj.purchasePrice = vals[index];
+            if (h === 'customerprice' || h === 'sellingprice' || h === 'price') obj.sellingPrice = vals[index];
+            if (h === 'doctorprice' || h === 'drprice') obj.doctorPrice = vals[index];
             if (h === 'expirydate') obj.expiryDate = vals[index];
             if (h === 'suppliername') obj.supplierName = vals[index] || 'General / Direct';
-            if (h === 'producttype') obj.productType = vals[index];
-            if (h === 'saleunit') obj.saleUnit = vals[index];
+            if (h === 'producttype' || h === 'type') obj.productType = vals[index];
+            if (h === 'saleunit' || h === 'unit') obj.saleUnit = vals[index];
+            if (h === 'stripsperbox') obj.stripsPerBox = vals[index];
+            if (h === 'unitsperstrip') obj.unitsPerStrip = vals[index];
           });
+          if (!obj.doctorPrice && obj.sellingPrice) {
+            obj.doctorPrice = obj.sellingPrice;
+          }
           parsedMedicines.push(obj);
         }
 
@@ -666,25 +669,26 @@ export default function MedicalInventory() {
           </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
-          <Table className="min-w-[1250px]">
+          <Table className="min-w-[1320px]">
             <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableHead className="w-[190px]">Medicine Name *</TableHead>
-                <TableHead className="w-[100px]">Type</TableHead>
-                <TableHead className="w-[150px]">Unit / Config</TableHead>
-                <TableHead className="w-[110px]">Batch No</TableHead>
-                <TableHead className="w-[130px]">Stock Ledger</TableHead>
-                <TableHead className="w-[105px]" title="Price per Strip for Tablets, otherwise per unit">Purch. (₹) *</TableHead>
-                <TableHead className="w-[105px]" title="Price per Strip for Tablets, otherwise per unit">Sell (₹) *</TableHead>
-                <TableHead className="w-[170px]">Expiry *</TableHead>
-                <TableHead className="w-[140px]">Supplier</TableHead>
-                <TableHead className="w-[90px] text-center">Actions</TableHead>
+                <TableHead className="w-[180px]">Medicine Name *</TableHead>
+                <TableHead className="w-[95px]">Type</TableHead>
+                <TableHead className="w-[165px]">Unit & Packaging</TableHead>
+                <TableHead className="w-[105px]">Batch No</TableHead>
+                <TableHead className="w-[125px]">Stock Ledger</TableHead>
+                <TableHead className="w-[95px]" title="Cost price per selected unit">Cost (₹/unit) *</TableHead>
+                <TableHead className="w-[95px]" title="Customer selling price per selected unit">Customer (₹) *</TableHead>
+                <TableHead className="w-[95px]" title="Doctor / Professional selling price per selected unit">Dr Price (₹)</TableHead>
+                <TableHead className="w-[155px]">Expiry *</TableHead>
+                <TableHead className="w-[130px]">Supplier</TableHead>
+                <TableHead className="w-[85px] text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredMedicines.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
                     {searchQuery ? (
                       <div>
                         <p className="font-medium text-slate-700">No medicines match "{searchQuery}"</p>
@@ -743,53 +747,84 @@ export default function MedicalInventory() {
                         )}
                       </TableCell>
 
-                      {/* Type */}
+                      {/* Type: tablet, capsule, ointment, syrup, drop, other */}
                       <TableCell className="p-1 align-top">
                         <select 
                           value={item.productType} 
-                          onChange={(e) => handleChange(item.id, 'productType', e.target.value)}
-                          className="h-8 w-full border-transparent hover:border-slate-300 focus:ring-1 bg-transparent px-1 rounded-md text-sm"
+                          onChange={(e) => {
+                            const newType = e.target.value;
+                            handleChange(item.id, 'productType', newType);
+                            if ((newType === 'tablet' || newType === 'capsule') && item.saleUnit === 'piece') {
+                              handleChange(item.id, 'saleUnit', 'strip');
+                            }
+                          }}
+                          className="h-8 w-full border-transparent hover:border-slate-300 focus:ring-1 bg-transparent px-1 rounded-md text-xs font-semibold capitalize"
                         >
-                          <option value="tablet">Tablet</option>
-                          <option value="capsule">Capsule</option>
-                          <option value="syrup">Syrup</option>
-                          <option value="injection">Injection</option>
-                          <option value="cream">Cream</option>
-                          <option value="ointment">Ointment</option>
-                          <option value="drops">Drops</option>
-                          <option value="medical_device">Device</option>
+                          {MEDICINE_TYPES.map(t => (
+                            <option key={t.value} value={t.value}>{t.label}</option>
+                          ))}
                         </select>
                       </TableCell>
 
-                      {/* Unit / Config */}
+                      {/* Unit & Packaging Config: strip, piece, box */}
                       <TableCell className="p-1 align-top">
                         <div className="flex flex-col gap-1">
                           <select 
                             value={item.saleUnit} 
                             onChange={(e) => handleChange(item.id, 'saleUnit', e.target.value)}
-                            className="h-7 w-full border-transparent hover:border-slate-300 focus:ring-1 bg-transparent px-1 rounded-md text-xs font-semibold"
+                            className="h-7 w-full border-transparent hover:border-slate-300 focus:ring-1 bg-transparent px-1 rounded-md text-xs font-semibold capitalize"
                           >
-                            {getValidUnitsForType(item.productType).map(u => (
+                            {MEDICINE_UNITS.map(u => (
                               <option key={u.value} value={u.value}>{u.label}</option>
                             ))}
                           </select>
-                          {(item.productType === 'tablet' || item.productType === 'capsule') && (
-                            <div className="flex gap-1">
-                              <Input 
-                                type="number" value={item.stripsPerBox} onChange={(e) => handleChange(item.id, 'stripsPerBox', e.target.value)}
-                                className="h-6 w-full text-xs px-1" title="Strips per Box" placeholder="Str/Box"
-                              />
-                              <Input 
-                                type="number" value={item.unitsPerStrip} onChange={(e) => handleChange(item.id, 'unitsPerStrip', e.target.value)}
-                                className="h-6 w-full text-xs px-1" title="Units per Strip" placeholder="Units/Str"
-                              />
+                          
+                          {item.saleUnit === 'box' && (
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex gap-1">
+                                <Input 
+                                  type="number" 
+                                  value={item.stripsPerBox} 
+                                  onChange={(e) => handleChange(item.id, 'stripsPerBox', e.target.value)}
+                                  className="h-6 w-full text-xs px-1" 
+                                  title="Strips in this Box" 
+                                  placeholder="Str/Box"
+                                />
+                                <Input 
+                                  type="number" 
+                                  value={item.unitsPerStrip} 
+                                  onChange={(e) => handleChange(item.id, 'unitsPerStrip', e.target.value)}
+                                  className="h-6 w-full text-xs px-1" 
+                                  title="Tablets/Capsules/Pieces in each Strip" 
+                                  placeholder="Tabs/Str"
+                                />
+                              </div>
+                              <span className="text-[10px] text-slate-500 font-mono text-center">
+                                = {(Number(item.stripsPerBox) || 1) * (Number(item.unitsPerStrip) || 1)} units/box
+                              </span>
                             </div>
                           )}
-                          {item.productType === 'syrup' && (
-                            <Input 
-                              value={item.bottleVolume} onChange={(e) => handleChange(item.id, 'bottleVolume', e.target.value)}
-                              className="h-6 w-full text-xs px-1" title="Bottle Volume" placeholder="e.g. 100ml"
-                            />
+
+                          {item.saleUnit === 'strip' && (
+                            <div className="flex flex-col gap-0.5">
+                              <Input 
+                                type="number" 
+                                value={item.unitsPerStrip} 
+                                onChange={(e) => handleChange(item.id, 'unitsPerStrip', e.target.value)}
+                                className="h-6 w-full text-xs px-1" 
+                                title="Tablets or Capsules per Strip" 
+                                placeholder="Tabs/Strip"
+                              />
+                              <span className="text-[10px] text-slate-500 font-mono text-center">
+                                {Number(item.unitsPerStrip) || 10} tabs/strip
+                              </span>
+                            </div>
+                          )}
+
+                          {item.saleUnit === 'piece' && (
+                            <span className="text-[10px] text-slate-400 font-medium px-1">
+                              1 unit / piece
+                            </span>
                           )}
                         </div>
                       </TableCell>
@@ -807,14 +842,26 @@ export default function MedicalInventory() {
                       {/* Stock Ledger */}
                       <TableCell className="p-1 text-center bg-slate-50/70 border-x border-slate-200 align-top">
                         <div className="flex items-center justify-between px-1">
-                          <Input 
-                            type="number" 
-                            value={item.stock} 
-                            onChange={(e) => handleChange(item.id, 'stock', e.target.value)} 
-                            disabled={!item.isNew}
-                            className={`h-8 w-16 border-transparent focus-visible:ring-1 bg-transparent px-2 disabled:opacity-100 disabled:font-bold ${item.stock < item.minimumStockAlert && item.stock !== '' ? 'text-red-600' : 'text-slate-800'}`} 
-                            placeholder="0" 
-                          />
+                          <div>
+                            <Input 
+                              type="number" 
+                              value={item.stock} 
+                              onChange={(e) => handleChange(item.id, 'stock', e.target.value)} 
+                              disabled={!item.isNew}
+                              className={`h-8 w-16 border-transparent focus-visible:ring-1 bg-transparent px-2 disabled:opacity-100 disabled:font-bold ${item.stock < item.minimumStockAlert && item.stock !== '' ? 'text-red-600' : 'text-slate-800'}`} 
+                              placeholder="0" 
+                            />
+                            {item.saleUnit === 'strip' && item.unitsPerStrip && item.stock !== '' && (
+                              <div className="text-[10px] text-slate-500 font-mono text-left px-1">
+                                {(Number(item.stock) / Number(item.unitsPerStrip)).toFixed(1).replace(/\.0$/, '')} str
+                              </div>
+                            )}
+                            {item.saleUnit === 'box' && item.stripsPerBox && item.unitsPerStrip && item.stock !== '' && (
+                              <div className="text-[10px] text-slate-500 font-mono text-left px-1">
+                                {(Number(item.stock) / (Number(item.stripsPerBox) * Number(item.unitsPerStrip))).toFixed(1).replace(/\.0$/, '')} box
+                              </div>
+                            )}
+                          </div>
                           {!item.isNew && (
                             <div className="flex flex-col">
                               <Button variant="ghost" size="icon" className="h-4 w-4 text-emerald-600 hover:text-emerald-800" title="Add Purchase" onClick={() => { setActiveMedicine(item); setPurchaseModalOpen(true); }}>
@@ -828,25 +875,36 @@ export default function MedicalInventory() {
                         </div>
                       </TableCell>
 
-                      {/* Purchase Price */}
+                      {/* Cost Price (By Unit) */}
                       <TableCell className="p-1 align-top">
                         <Input 
                           type="number" step="0.01" 
                           value={item.purchasePrice} 
                           onChange={(e) => handleChange(item.id, 'purchasePrice', e.target.value)} 
-                          className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2" 
-                          placeholder="0.00" 
+                          className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2 font-medium" 
+                          placeholder="Cost/unit" 
                         />
                       </TableCell>
 
-                      {/* Selling Price */}
+                      {/* Customer Selling Price */}
                       <TableCell className="p-1 align-top">
                         <Input 
                           type="number" step="0.01" 
                           value={item.sellingPrice} 
                           onChange={(e) => handleChange(item.id, 'sellingPrice', e.target.value)} 
                           className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2 font-bold text-emerald-700" 
-                          placeholder="0.00" 
+                          placeholder="Cust. MRP" 
+                        />
+                      </TableCell>
+
+                      {/* Doctor Selling Price */}
+                      <TableCell className="p-1 align-top">
+                        <Input 
+                          type="number" step="0.01" 
+                          value={item.doctorPrice} 
+                          onChange={(e) => handleChange(item.id, 'doctorPrice', e.target.value)} 
+                          className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2 font-bold text-blue-700" 
+                          placeholder="Dr. Rate" 
                         />
                       </TableCell>
 
@@ -970,10 +1028,10 @@ export default function MedicalInventory() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="bg-blue-50 p-3 rounded-md text-sm text-blue-800">
-              Note: For Tablets/Capsules, enter quantity in <strong>Strips</strong>. The system will convert it to total tablets.
+              Note: Enter quantity in <strong>{activeMedicine?.saleUnit ? activeMedicine.saleUnit.toUpperCase() : 'UNITS'}</strong>. The system will convert it to base stock.
             </div>
             <div>
-              <label className="text-sm font-medium">Quantity Purchased ({activeMedicine?.productType === 'tablet' || activeMedicine?.productType === 'capsule' ? 'Strips' : 'Units'})</label>
+              <label className="text-sm font-medium">Quantity Purchased ({activeMedicine?.saleUnit ? activeMedicine.saleUnit.charAt(0).toUpperCase() + activeMedicine.saleUnit.slice(1) + 's' : 'Units'})</label>
               <Input type="number" value={purchaseQty} onChange={e => setPurchaseQty(e.target.value)} placeholder="0" />
             </div>
             <div>

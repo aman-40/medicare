@@ -47,7 +47,7 @@ router.get('/', async (req, res) => {
 // Add a new medicine (Admin Only)
 router.post('/', authenticate, authorizeRole('ADMIN'), async (req, res) => {
   try {
-    const { name, company, batchNo, purchasePrice, sellingPrice, stock, expiryDate, supplierId } = req.body;
+    const { name, company, batchNo, purchasePrice, sellingPrice, doctorPrice, stock, expiryDate, supplierId } = req.body;
     
     let resolvedSupplierId = supplierId;
     if (!resolvedSupplierId) {
@@ -69,6 +69,7 @@ router.post('/', authenticate, authorizeRole('ADMIN'), async (req, res) => {
         batchNo: (batchNo && batchNo.trim()) ? batchNo.trim() : '-', 
         purchasePrice: Number(purchasePrice), 
         sellingPrice: Number(sellingPrice), 
+        doctorPrice: doctorPrice !== undefined && doctorPrice !== '' ? Number(doctorPrice) : Number(sellingPrice),
         stock: Number(stock), 
         expiryDate: new Date(expiryDate), 
         supplierId: resolvedSupplierId 

@@ -158,6 +158,7 @@ model Medicine {
   batchNo       String
   purchasePrice Float
   sellingPrice  Float
+  doctorPrice   Float?   @default(0)
   purchaseDate  DateTime @default(now())
   gstPercent    Float    @default(0)
   

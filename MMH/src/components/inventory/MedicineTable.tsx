@@ -9,6 +9,7 @@ interface Medicine {
   stock: number;
   purchasePrice: number;
   sellingPrice: number;
+  doctorPrice?: number;
   expiryDate: string;
   supplier?: { name: string };
 }
@@ -108,9 +109,10 @@ export default function MedicineTable({ data }: { data: Medicine[] }) {
                     {item.stock} Units
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <div>Cost: ₹{item.purchasePrice}</div>
-                  <div className="font-medium text-gray-900">MRP: ₹{item.sellingPrice}</div>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <div className="text-xs text-slate-500">Cost: ₹{item.purchasePrice}</div>
+                  <div className="font-semibold text-emerald-700">Cust: ₹{item.sellingPrice}</div>
+                  <div className="font-semibold text-blue-700 text-xs">Dr: ₹{item.doctorPrice || item.sellingPrice}</div>
                 </td>
               </tr>
             );

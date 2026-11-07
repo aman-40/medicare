@@ -127,7 +127,7 @@ export default function Dashboard() {
                 <span className="text-sm text-slate-400">10 mins ago</span>
               </div>
               <div className="flex justify-between items-center border-b pb-2">
-                <span className="text-slate-600">Invoice Generated: INV-10001</span>
+                <span className="text-slate-600">Invoice Generated: INV-2026-0001</span>
                 <span className="text-sm text-slate-400">25 mins ago</span>
               </div>
               <div className="flex justify-between items-center border-b pb-2">
