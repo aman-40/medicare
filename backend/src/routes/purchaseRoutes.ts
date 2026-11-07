@@ -57,7 +57,7 @@ router.post('/', authenticate, async (req, res) => {
               totalAmount += amount;
               return {
                 medicineId: item.medicineId,
-                batchNo: item.batchNo,
+                batchNo: item.batchNo || '-',
                 expiryDate: new Date(item.expiryDate),
                 quantity: parseInt(item.quantity),
                 freeQuantity: item.freeQuantity ? parseInt(item.freeQuantity) : 0,

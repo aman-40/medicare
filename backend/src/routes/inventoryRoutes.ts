@@ -9,23 +9,29 @@ const prisma = new PrismaClient();
 router.get('/dashboard', authenticate, async (req, res) => {
   try {
     const [medicines, frames, lenses] = await Promise.all([
-      prisma.medicine.count(),
+      prisma.medicine.count({ where: { deletedAt: null } }),
       prisma.frame.count(),
       prisma.lens.count(),
     ]);
 
-    const lowStockMedicines = await prisma.medicine.count({ where: { stock: { lt: 10 } } });
+    const lowStockMedicines = await prisma.medicine.count({ where: { deletedAt: null, stock: { lt: 10 } } });
     const lowStockFrames = await prisma.frame.count({ where: { stock: { lt: 10 } } });
     const lowStockItems = lowStockMedicines + lowStockFrames;
 
-    const sixtyDaysFromNow = new Date();
-    sixtyDaysFromNow.setDate(sixtyDaysFromNow.getDate() + 60);
-    const expiringSoon = await prisma.medicine.count({
-      where: { expiryDate: { lte: sixtyDaysFromNow, gte: new Date() } }
-    });
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    const sixtyDaysFromNow = new Date();
+    sixtyDaysFromNow.setDate(today.getDate() + 60);
+    sixtyDaysFromNow.setHours(23, 59, 59, 999);
+
+    const expired = await prisma.medicine.count({
+      where: { deletedAt: null, expiryDate: { lt: today } }
+    });
+
+    const expiringSoon = await prisma.medicine.count({
+      where: { deletedAt: null, expiryDate: { gte: today, lte: sixtyDaysFromNow } }
+    });
 
     const todaysSales = await prisma.invoice.aggregate({
       where: { createdAt: { gte: today } },
@@ -37,7 +43,9 @@ router.get('/dashboard', authenticate, async (req, res) => {
       totalFrames: frames,
       totalLenses: lenses,
       lowStockItems,
+      expired,
       expiringSoon,
+      totalExpiringOrExpired: expired + expiringSoon,
       todaysSales: todaysSales._sum.totalAmount || 0,
     });
   } catch (error) {
@@ -105,18 +113,19 @@ router.post('/medicines/bulk', authenticate, async (req, res) => {
     for (let i = 0; i < medicines.length; i++) {
       const med = medicines[i];
       try {
-        if (!med.name || !med.batchNo || med.stock === undefined || med.purchasePrice === undefined || med.sellingPrice === undefined || !med.expiryDate || !med.supplierName) {
-          throw new Error('Missing required fields');
+        if (!med.name || med.stock === undefined || med.purchasePrice === undefined || med.sellingPrice === undefined || !med.expiryDate) {
+          throw new Error('Missing required fields (name, stock, purchasePrice, sellingPrice, expiryDate)');
         }
 
+        const supplierNameVal = (med.supplierName && med.supplierName.trim()) ? med.supplierName.trim() : 'General / Direct';
         let supplier = await prisma.supplier.findFirst({
-          where: { name: med.supplierName }
+          where: { name: supplierNameVal }
         });
 
         if (!supplier) {
           supplier = await prisma.supplier.create({
             data: {
-              name: med.supplierName,
+              name: supplierNameVal,
               phone: med.supplierPhone || 'N/A'
             }
           });
@@ -126,7 +135,7 @@ router.post('/medicines/bulk', authenticate, async (req, res) => {
           data: {
             name: med.name,
             company: med.company || '',
-            batchNo: med.batchNo,
+            batchNo: (med.batchNo && med.batchNo.trim()) ? med.batchNo.trim() : '-',
             purchasePrice: parseFloat(med.purchasePrice),
             sellingPrice: parseFloat(med.sellingPrice),
             purchaseDate: med.purchaseDate ? new Date(med.purchaseDate) : new Date(),
@@ -160,7 +169,7 @@ router.post('/medicines/bulk', authenticate, async (req, res) => {
   }
 });
 
-// Add New Medicine (with auto-supplier creation)
+// Add New Medicine (with optional supplier creation)
 router.post('/medicines', authenticate, async (req, res) => {
   try {
     const { 
@@ -169,15 +178,16 @@ router.post('/medicines', authenticate, async (req, res) => {
       productType, saleUnit, boxes, stripsPerBox, unitsPerStrip, totalUnits, bottleVolume
     } = req.body;
 
-    // Find or Create Supplier
+    // Find or Create Supplier (Optional: defaults to General / Direct)
+    const cleanSupplierName = (supplierName && supplierName.trim()) ? supplierName.trim() : 'General / Direct';
     let supplier = await prisma.supplier.findFirst({
-      where: { name: supplierName }
+      where: { name: cleanSupplierName }
     });
 
     if (!supplier) {
       supplier = await prisma.supplier.create({
         data: {
-          name: supplierName,
+          name: cleanSupplierName,
           phone: supplierPhone || 'N/A'
         }
       });
@@ -188,8 +198,8 @@ router.post('/medicines', authenticate, async (req, res) => {
         data: {
           name,
           genericName: genericName || null,
-          company,
-          batchNo,
+          company: company || '',
+          batchNo: (batchNo && batchNo.trim()) ? batchNo.trim() : '-',
           purchasePrice: parseFloat(purchasePrice),
           sellingPrice: parseFloat(sellingPrice),
           purchaseDate: purchaseDate ? new Date(purchaseDate) : new Date(),
@@ -242,15 +252,16 @@ router.put('/medicines/:id', authenticate, async (req, res) => {
     } = req.body;
     // NOTE: 'stock' and 'totalUnits' are intentionally excluded because stock must be modified via transactions.
 
-    // Find or Create Supplier
+    // Find or Create Supplier (Optional: defaults to General / Direct)
+    const cleanSupplierName = (supplierName && supplierName.trim()) ? supplierName.trim() : 'General / Direct';
     let supplier = await prisma.supplier.findFirst({
-      where: { name: supplierName }
+      where: { name: cleanSupplierName }
     });
 
     if (!supplier) {
       supplier = await prisma.supplier.create({
         data: {
-          name: supplierName,
+          name: cleanSupplierName,
           phone: supplierPhone || 'N/A'
         }
       });
@@ -261,8 +272,8 @@ router.put('/medicines/:id', authenticate, async (req, res) => {
       data: {
         name,
         genericName: genericName || null,
-        company,
-        batchNo,
+        company: company || '',
+        batchNo: (batchNo && batchNo.trim()) ? batchNo.trim() : '-',
         purchasePrice: parseFloat(purchasePrice),
         sellingPrice: parseFloat(sellingPrice),
         purchaseDate: purchaseDate ? new Date(purchaseDate) : new Date(),

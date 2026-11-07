@@ -48,16 +48,30 @@ router.get('/', async (req, res) => {
 router.post('/', authenticate, authorizeRole('ADMIN'), async (req, res) => {
   try {
     const { name, company, batchNo, purchasePrice, sellingPrice, stock, expiryDate, supplierId } = req.body;
+    
+    let resolvedSupplierId = supplierId;
+    if (!resolvedSupplierId) {
+      let defaultSupplier = await prisma.supplier.findFirst({
+        where: { name: 'General / Direct' }
+      });
+      if (!defaultSupplier) {
+        defaultSupplier = await prisma.supplier.create({
+          data: { name: 'General / Direct', phone: 'N/A' }
+        });
+      }
+      resolvedSupplierId = defaultSupplier.id;
+    }
+
     const medicine = await prisma.medicine.create({
       data: { 
         name, 
-        company, 
-        batchNo, 
+        company: company || '', 
+        batchNo: (batchNo && batchNo.trim()) ? batchNo.trim() : '-', 
         purchasePrice: Number(purchasePrice), 
         sellingPrice: Number(sellingPrice), 
         stock: Number(stock), 
         expiryDate: new Date(expiryDate), 
-        supplierId 
+        supplierId: resolvedSupplierId 
       }
     });
     res.status(201).json(medicine);

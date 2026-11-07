@@ -1,12 +1,43 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../../components/ui/dialog";
-import { Package, AlertTriangle, Clock, Plus, Save, Trash2, RefreshCw, Upload, Download, Settings, ShoppingCart, ArrowLeftRight } from "lucide-react";
+import { Package, AlertTriangle, Clock, Plus, Save, Trash2, RefreshCw, Upload, Download, Settings, ShoppingCart, ArrowLeftRight, Search, X } from "lucide-react";
 import { useNavigate } from "react-router";
 import api from "../../api/axios";
+
+export const getExpiryStatus = (dateStr: string) => {
+  if (!dateStr) return { status: 'NORMAL' as const, label: '', subText: '', days: 0 };
+  const expiry = new Date(dateStr);
+  if (isNaN(expiry.getTime())) return { status: 'NORMAL' as const, label: '', subText: '', days: 0 };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expDate = new Date(expiry);
+  expDate.setHours(0, 0, 0, 0);
+
+  const diffTime = expDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return {
+      status: 'EXPIRED' as const,
+      label: 'Expired',
+      subText: `${Math.abs(diffDays)}d ago`,
+      days: diffDays
+    };
+  } else if (diffDays <= 60) {
+    return {
+      status: 'EXPIRING_SOON' as const,
+      label: 'Expiring Soon',
+      subText: diffDays === 0 ? 'Today' : `in ${diffDays}d`,
+      days: diffDays
+    };
+  }
+  return { status: 'NORMAL' as const, label: 'Valid', subText: `${diffDays}d left`, days: diffDays };
+};
 
 const getValidUnitsForType = (type: string) => {
   switch (type) {
@@ -36,7 +67,8 @@ export default function MedicalInventory() {
   const [loadingRowId, setLoadingRowId] = useState<string | null>(null);
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [isUploadingCSV, setIsUploadingCSV] = useState(false);
-  const [filterMode, setFilterMode] = useState<'ALL' | 'LOW_STOCK' | 'EXPIRING'>('ALL');
+  const [filterMode, setFilterMode] = useState<'ALL' | 'LOW_STOCK' | 'EXPIRED' | 'EXPIRING_SOON'>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
   // Custom Delete Confirmation State
@@ -139,15 +171,15 @@ export default function MedicalInventory() {
   };
 
   const saveSingleRow = async (med: any) => {
-    if (!med.name || !med.batchNo || med.stock === '' || !med.purchasePrice || !med.sellingPrice || !med.expiryDate || !med.supplierName) {
-      throw new Error(`Please fill all required fields for ${med.name || 'new medicine'}.`);
+    if (!med.name || med.stock === '' || !med.purchasePrice || !med.sellingPrice || !med.expiryDate) {
+      throw new Error(`Please fill required fields (Name, Stock, Purchase Price, Selling Price, Expiry Date) for ${med.name || 'new medicine'}.`);
     }
 
     const payload = {
       name: med.name,
       genericName: med.genericName,
       company: med.company,
-      batchNo: med.batchNo,
+      batchNo: (med.batchNo && med.batchNo.trim()) ? med.batchNo.trim() : '-',
       stock: med.stock, // Only used when isNew is true to set initial stock
       minimumStockAlert: med.minimumStockAlert,
       purchasePrice: med.purchasePrice,
@@ -155,7 +187,7 @@ export default function MedicalInventory() {
       purchaseDate: med.purchaseDate,
       expiryDate: med.expiryDate,
       supplierId: med.supplierId,
-      supplierName: med.supplierName,
+      supplierName: (med.supplierName && med.supplierName.trim()) ? med.supplierName.trim() : 'General / Direct',
       supplierPhone: med.supplierPhone,
       productType: med.productType,
       saleUnit: med.saleUnit,
@@ -314,12 +346,12 @@ export default function MedicalInventory() {
           headers.forEach((h, index) => {
             if (h === 'name') obj.name = vals[index];
             if (h === 'company') obj.company = vals[index];
-            if (h === 'batchno') obj.batchNo = vals[index];
+            if (h === 'batchno') obj.batchNo = vals[index] || '-';
             if (h === 'stock') obj.stock = vals[index];
             if (h === 'purchaseprice') obj.purchasePrice = vals[index];
             if (h === 'sellingprice') obj.sellingPrice = vals[index];
             if (h === 'expirydate') obj.expiryDate = vals[index];
-            if (h === 'suppliername') obj.supplierName = vals[index];
+            if (h === 'suppliername') obj.supplierName = vals[index] || 'General / Direct';
             if (h === 'producttype') obj.productType = vals[index];
             if (h === 'saleunit') obj.saleUnit = vals[index];
           });
@@ -345,6 +377,70 @@ export default function MedicalInventory() {
 
   const dirtyCount = medicines.filter(m => m.isDirty).length;
 
+  const todayDate = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const sixtyDaysDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 60);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }, []);
+
+  const lowStockCount = useMemo(() => {
+    return medicines.filter(m => Number(m.stock) < (m.minimumStockAlert || 10)).length;
+  }, [medicines]);
+
+  const expiredCount = useMemo(() => {
+    return medicines.filter(m => {
+      if (!m.expiryDate) return false;
+      return new Date(m.expiryDate) < todayDate;
+    }).length;
+  }, [medicines, todayDate]);
+
+  const expiringSoonCount = useMemo(() => {
+    return medicines.filter(m => {
+      if (!m.expiryDate) return false;
+      const d = new Date(m.expiryDate);
+      return d >= todayDate && d <= sixtyDaysDate;
+    }).length;
+  }, [medicines, todayDate, sixtyDaysDate]);
+
+  const filteredMedicines = useMemo(() => {
+    return medicines.filter(m => {
+      // 1. Search Query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        const matches = 
+          (m.name && m.name.toLowerCase().includes(q)) ||
+          (m.genericName && m.genericName.toLowerCase().includes(q)) ||
+          (m.company && m.company.toLowerCase().includes(q)) ||
+          (m.batchNo && m.batchNo.toLowerCase().includes(q)) ||
+          (m.supplierName && m.supplierName.toLowerCase().includes(q)) ||
+          (m.productType && m.productType.toLowerCase().includes(q));
+        if (!matches) return false;
+      }
+
+      // 2. Status filter
+      if (filterMode === 'LOW_STOCK') {
+        return Number(m.stock) < (m.minimumStockAlert || 10);
+      }
+      if (filterMode === 'EXPIRED') {
+        if (!m.expiryDate) return false;
+        return new Date(m.expiryDate) < todayDate;
+      }
+      if (filterMode === 'EXPIRING_SOON') {
+        if (!m.expiryDate) return false;
+        const d = new Date(m.expiryDate);
+        return d >= todayDate && d <= sixtyDaysDate;
+      }
+      return true;
+    });
+  }, [medicines, searchQuery, filterMode, todayDate, sixtyDaysDate]);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -354,11 +450,19 @@ export default function MedicalInventory() {
             Inventory Management
           </h1>
           {filterMode !== 'ALL' && (
-            <div className="mt-2 text-sm">
-              <span className="text-slate-500 mr-2">Showing:</span>
-              <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium flex inline-flex items-center">
-                {filterMode === 'LOW_STOCK' ? 'Low Stock Only' : 'Expiring Soon Only'}
-                <button onClick={() => setFilterMode('ALL')} className="ml-2 text-blue-500 hover:text-blue-800">&times;</button>
+            <div className="mt-2 text-sm flex items-center gap-2">
+              <span className="text-slate-500">Filtered by:</span>
+              <span className={`px-2.5 py-1 rounded-full font-semibold inline-flex items-center text-xs shadow-xs ${
+                filterMode === 'LOW_STOCK'
+                  ? 'bg-orange-100 text-orange-800 border border-orange-300'
+                  : filterMode === 'EXPIRED'
+                  ? 'bg-red-100 text-red-800 border border-red-300'
+                  : 'bg-amber-100 text-amber-800 border border-amber-300'
+              }`}>
+                {filterMode === 'LOW_STOCK' && 'Low Stock Medicines Only'}
+                {filterMode === 'EXPIRED' && 'Expired Medicines Only'}
+                {filterMode === 'EXPIRING_SOON' && 'Expiring Soon Medicines Only'}
+                <button onClick={() => setFilterMode('ALL')} className="ml-2 hover:opacity-75 font-bold text-sm leading-none">&times;</button>
               </span>
             </div>
           )}
@@ -388,67 +492,154 @@ export default function MedicalInventory() {
       </Dialog>
 
       {/* DASHBOARD STATS */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card 
-            className={`border-2 cursor-pointer transition-all ${filterMode === 'ALL' ? 'bg-blue-100 border-blue-400' : 'bg-white shadow-sm hover:border-blue-300'}`}
-            onClick={() => setFilterMode('ALL')}
-          >
-            <CardContent className="p-6">
-              <p className={`text-sm font-medium mb-1 ${filterMode === 'ALL' ? 'text-blue-700' : 'text-slate-500'}`}>All Medicines</p>
-              <h3 className={`text-3xl font-bold ${filterMode === 'ALL' ? 'text-blue-800' : 'text-slate-800'}`}>{stats.totalMedicines}</h3>
-            </CardContent>
-          </Card>
-          <Card 
-            className="border-2 bg-white shadow-sm cursor-pointer hover:border-indigo-300 transition-all"
-            onClick={() => navigate('/admin/optical-store')}
-          >
-            <CardContent className="p-6">
-              <p className="text-sm font-medium text-slate-500 mb-1">Frames & Lenses</p>
-              <h3 className="text-3xl font-bold text-slate-800">{stats.totalFrames + stats.totalLenses}</h3>
-            </CardContent>
-          </Card>
-          <Card 
-            className={`border-2 cursor-pointer transition-all ${filterMode === 'LOW_STOCK' ? 'bg-red-100 border-red-400' : 'bg-red-50 border-red-200 hover:border-red-300'}`}
-            onClick={() => setFilterMode(filterMode === 'LOW_STOCK' ? 'ALL' : 'LOW_STOCK')}
-          >
-            <CardContent className="p-6 flex justify-between items-center">
-              <div>
-                <p className={`text-sm font-medium mb-1 ${filterMode === 'LOW_STOCK' ? 'text-red-700' : 'text-red-600'}`}>Low Stock Alerts</p>
-                <h3 className={`text-3xl font-bold ${filterMode === 'LOW_STOCK' ? 'text-red-800' : 'text-red-700'}`}>{stats.lowStockItems}</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* All Medicines */}
+        <Card 
+          className={`border-2 cursor-pointer transition-all ${filterMode === 'ALL' ? 'bg-blue-100 border-blue-400 shadow-xs' : 'bg-white shadow-sm hover:border-blue-300'}`}
+          onClick={() => setFilterMode('ALL')}
+        >
+          <CardContent className="p-5">
+            <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${filterMode === 'ALL' ? 'text-blue-700' : 'text-slate-500'}`}>All Medicines</p>
+            <h3 className={`text-3xl font-black ${filterMode === 'ALL' ? 'text-blue-900' : 'text-slate-800'}`}>{medicines.length}</h3>
+          </CardContent>
+        </Card>
+
+        {/* Low Stock Alerts */}
+        <Card 
+          className={`border-2 cursor-pointer transition-all ${filterMode === 'LOW_STOCK' ? 'bg-orange-100 border-orange-400 shadow-xs' : 'bg-orange-50/50 border-orange-200 hover:border-orange-300'}`}
+          onClick={() => setFilterMode(filterMode === 'LOW_STOCK' ? 'ALL' : 'LOW_STOCK')}
+        >
+          <CardContent className="p-5 flex justify-between items-center">
+            <div>
+              <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${filterMode === 'LOW_STOCK' ? 'text-orange-800' : 'text-orange-600'}`}>Low Stock</p>
+              <h3 className={`text-3xl font-black ${filterMode === 'LOW_STOCK' ? 'text-orange-950' : 'text-orange-700'}`}>{lowStockCount}</h3>
+            </div>
+            <AlertTriangle className={`w-8 h-8 ${filterMode === 'LOW_STOCK' ? 'text-orange-600' : 'text-orange-400'}`} />
+          </CardContent>
+        </Card>
+
+        {/* Expired (RED) */}
+        <Card 
+          className={`border-2 cursor-pointer transition-all ${filterMode === 'EXPIRED' ? 'bg-red-100 border-red-500 shadow-md ring-2 ring-red-400' : 'bg-red-50/50 border-red-200 hover:border-red-400'}`}
+          onClick={() => setFilterMode(filterMode === 'EXPIRED' ? 'ALL' : 'EXPIRED')}
+        >
+          <CardContent className="p-5 flex justify-between items-center">
+            <div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse"></span>
+                <p className={`text-xs font-bold uppercase tracking-wider ${filterMode === 'EXPIRED' ? 'text-red-900' : 'text-red-600'}`}>Expired</p>
               </div>
-              <AlertTriangle className={`w-10 h-10 ${filterMode === 'LOW_STOCK' ? 'text-red-500 opacity-80' : 'text-red-400 opacity-50'}`} />
-            </CardContent>
-          </Card>
-          <Card 
-            className={`border-2 cursor-pointer transition-all ${filterMode === 'EXPIRING' ? 'bg-orange-100 border-orange-400' : 'bg-orange-50 border-orange-200 hover:border-orange-300'}`}
-            onClick={() => setFilterMode(filterMode === 'EXPIRING' ? 'ALL' : 'EXPIRING')}
-          >
-            <CardContent className="p-6 flex justify-between items-center">
-              <div>
-                <p className={`text-sm font-medium mb-1 ${filterMode === 'EXPIRING' ? 'text-orange-700' : 'text-orange-600'}`}>Expiring Soon</p>
-                <h3 className={`text-3xl font-bold ${filterMode === 'EXPIRING' ? 'text-orange-800' : 'text-orange-700'}`}>{stats.expiringSoon}</h3>
+              <h3 className={`text-3xl font-black ${filterMode === 'EXPIRED' ? 'text-red-950' : 'text-red-700'}`}>{expiredCount}</h3>
+            </div>
+            <AlertTriangle className={`w-8 h-8 ${filterMode === 'EXPIRED' ? 'text-red-600' : 'text-red-400'}`} />
+          </CardContent>
+        </Card>
+
+        {/* Expiring Soon (YELLOWISH / AMBER) */}
+        <Card 
+          className={`border-2 cursor-pointer transition-all ${filterMode === 'EXPIRING_SOON' ? 'bg-amber-100 border-amber-500 shadow-md ring-2 ring-amber-400' : 'bg-amber-50/50 border-amber-200 hover:border-amber-400'}`}
+          onClick={() => setFilterMode(filterMode === 'EXPIRING_SOON' ? 'ALL' : 'EXPIRING_SOON')}
+        >
+          <CardContent className="p-5 flex justify-between items-center">
+            <div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                <p className={`text-xs font-bold uppercase tracking-wider ${filterMode === 'EXPIRING_SOON' ? 'text-amber-900' : 'text-amber-700'}`}>Expiring Soon</p>
               </div>
-              <Clock className={`w-10 h-10 ${filterMode === 'EXPIRING' ? 'text-orange-500 opacity-80' : 'text-orange-400 opacity-50'}`} />
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              <h3 className={`text-3xl font-black ${filterMode === 'EXPIRING_SOON' ? 'text-amber-950' : 'text-amber-700'}`}>{expiringSoonCount}</h3>
+            </div>
+            <Clock className={`w-8 h-8 ${filterMode === 'EXPIRING_SOON' ? 'text-amber-600' : 'text-amber-400'}`} />
+          </CardContent>
+        </Card>
+
+        {/* Frames & Lenses */}
+        <Card 
+          className="border-2 bg-white shadow-sm cursor-pointer hover:border-indigo-300 transition-all"
+          onClick={() => navigate('/admin/optical-store')}
+        >
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Frames & Lenses</p>
+            <h3 className="text-3xl font-black text-slate-800">{stats ? (stats.totalFrames + stats.totalLenses) : 0}</h3>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* DATABASE TABLE */}
       <Card className="border-2 border-slate-200 shadow-sm mt-8">
-        <CardHeader className="bg-slate-50 border-b border-slate-200 flex flex-row items-center justify-between py-3">
-          <div className="flex items-center space-x-4">
-            <CardTitle className="text-lg text-slate-800">Medicine Database</CardTitle>
-            {dirtyCount > 0 && (
-              <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-amber-300">
-                {dirtyCount} unsaved changes
-              </span>
-            )}
+        <CardHeader className="bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3 py-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center space-x-2">
+              <CardTitle className="text-lg text-slate-800">Medicine Database</CardTitle>
+              {dirtyCount > 0 && (
+                <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-amber-300">
+                  {dirtyCount} unsaved
+                </span>
+              )}
+            </div>
+
+            {/* Quick Filter Pills */}
+            <div className="flex items-center gap-1 bg-slate-200/70 p-1 rounded-lg text-xs font-medium">
+              <button
+                onClick={() => setFilterMode('ALL')}
+                className={`px-2.5 py-1 rounded-md transition-all ${
+                  filterMode === 'ALL' ? 'bg-white text-blue-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                All ({medicines.length})
+              </button>
+              <button
+                onClick={() => setFilterMode('LOW_STOCK')}
+                className={`px-2.5 py-1 rounded-md transition-all ${
+                  filterMode === 'LOW_STOCK' ? 'bg-white text-orange-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Low Stock ({lowStockCount})
+              </button>
+              <button
+                onClick={() => setFilterMode('EXPIRED')}
+                className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 ${
+                  filterMode === 'EXPIRED' ? 'bg-red-600 text-white font-bold shadow-xs' : 'text-red-700 hover:bg-red-100/60'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                Expired ({expiredCount})
+              </button>
+              <button
+                onClick={() => setFilterMode('EXPIRING_SOON')}
+                className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 ${
+                  filterMode === 'EXPIRING_SOON' ? 'bg-amber-500 text-amber-950 font-bold shadow-xs' : 'text-amber-800 hover:bg-amber-100/60'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                Expiring Soon ({expiringSoonCount})
+              </button>
+            </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" onClick={handleDownloadTemplate} size="sm" className="text-slate-600 h-8">
-              <Download className="w-4 h-4 mr-1" /> Template
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* SEARCH INPUT */}
+            <div className="relative w-64 lg:w-72">
+              <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Search by name, batch, supplier..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 pr-7 h-8 text-xs bg-white border-slate-300 focus-visible:ring-blue-500"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <Button variant="outline" onClick={handleDownloadTemplate} size="sm" className="text-slate-600 h-8 text-xs">
+              <Download className="w-3.5 h-3.5 mr-1" /> Template
             </Button>
             <div className="relative">
               <input 
@@ -458,209 +649,282 @@ export default function MedicalInventory() {
                 onChange={handleFileUpload} 
                 disabled={isUploadingCSV}
               />
-              <Button size="sm" variant="secondary" className="bg-slate-200 hover:bg-slate-300 text-slate-800 h-8" disabled={isUploadingCSV}>
-                {isUploadingCSV ? <RefreshCw className="w-4 h-4 mr-1 animate-spin" /> : <Upload className="w-4 h-4 mr-1" />}
+              <Button size="sm" variant="secondary" className="bg-slate-200 hover:bg-slate-300 text-slate-800 h-8 text-xs" disabled={isUploadingCSV}>
+                {isUploadingCSV ? <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Upload className="w-3.5 h-3.5 mr-1" />}
                 {isUploadingCSV ? "Uploading..." : "CSV"}
               </Button>
             </div>
             {dirtyCount > 0 && (
-              <Button onClick={handleSaveAll} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8" disabled={isSavingAll}>
-                {isSavingAll ? <RefreshCw className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+              <Button onClick={handleSaveAll} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs" disabled={isSavingAll}>
+                {isSavingAll ? <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
                 Save All
               </Button>
             )}
-            <Button onClick={handleAddRow} size="sm" className="bg-blue-600 hover:bg-blue-700 h-8">
-              <Plus className="w-4 h-4 mr-1" /> Add Row
+            <Button onClick={handleAddRow} size="sm" className="bg-blue-600 hover:bg-blue-700 h-8 text-xs">
+              <Plus className="w-3.5 h-3.5 mr-1" /> Add Row
             </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
-          <Table className="min-w-[1200px]">
+          <Table className="min-w-[1250px]">
             <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableHead className="w-[180px]">Medicine Name *</TableHead>
+                <TableHead className="w-[190px]">Medicine Name *</TableHead>
                 <TableHead className="w-[100px]">Type</TableHead>
-                <TableHead className="w-[160px]">Unit / Config</TableHead>
-                <TableHead className="w-[100px]">Batch No *</TableHead>
-                <TableHead className="w-[140px]">Stock Ledger</TableHead>
-                <TableHead className="w-[110px]" title="Price per Strip for Tablets, otherwise per unit">Purch. (₹) *</TableHead>
-                <TableHead className="w-[110px]" title="Price per Strip for Tablets, otherwise per unit">Sell (₹) *</TableHead>
-                <TableHead className="w-[140px]">Expiry *</TableHead>
-                <TableHead className="w-[150px]">Supplier *</TableHead>
-                <TableHead className="w-[130px] text-center">Actions</TableHead>
+                <TableHead className="w-[150px]">Unit / Config</TableHead>
+                <TableHead className="w-[110px]">Batch No</TableHead>
+                <TableHead className="w-[130px]">Stock Ledger</TableHead>
+                <TableHead className="w-[105px]" title="Price per Strip for Tablets, otherwise per unit">Purch. (₹) *</TableHead>
+                <TableHead className="w-[105px]" title="Price per Strip for Tablets, otherwise per unit">Sell (₹) *</TableHead>
+                <TableHead className="w-[170px]">Expiry *</TableHead>
+                <TableHead className="w-[140px]">Supplier</TableHead>
+                <TableHead className="w-[90px] text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {medicines.filter(m => {
-                if (filterMode === 'LOW_STOCK') return Number(m.stock) < 10;
-                if (filterMode === 'EXPIRING') {
-                  const threshold = new Date();
-                  threshold.setDate(threshold.getDate() + 60);
-                  return new Date(m.expiryDate) <= threshold;
-                }
-                return true;
-              }).length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                  {filterMode === 'ALL' ? 'No medicines. Click "Add Row" to start typing.' : 'No medicines match the selected filter.'}
-                </TableCell></TableRow>
+              {filteredMedicines.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
+                    {searchQuery ? (
+                      <div>
+                        <p className="font-medium text-slate-700">No medicines match "{searchQuery}"</p>
+                        <button onClick={() => setSearchQuery('')} className="mt-2 text-xs text-blue-600 hover:underline">
+                          Clear search filter
+                        </button>
+                      </div>
+                    ) : filterMode === 'ALL' ? (
+                      'No medicines in database. Click "Add Row" to start typing.'
+                    ) : filterMode === 'EXPIRED' ? (
+                      'No expired medicines found.'
+                    ) : filterMode === 'EXPIRING_SOON' ? (
+                      'No medicines expiring soon (within 60 days).'
+                    ) : (
+                      'No low stock medicines found.'
+                    )}
+                  </TableCell>
+                </TableRow>
               ) : (
-                medicines.filter(m => {
-                  if (filterMode === 'LOW_STOCK') return Number(m.stock) < 10;
-                  if (filterMode === 'EXPIRING') {
-                    const threshold = new Date();
-                    threshold.setDate(threshold.getDate() + 60);
-                    return new Date(m.expiryDate) <= threshold;
-                  }
-                  return true;
-                }).map((item) => (
-                  <TableRow key={item.id} className={item.isDirty ? 'bg-amber-50/50' : ''}>
-                    <TableCell className="p-1">
-                      <Input 
-                        value={item.name} 
-                        onChange={(e) => handleChange(item.id, 'name', e.target.value)} 
-                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2" 
-                        placeholder="Name" 
-                      />
-                    </TableCell>
-                    <TableCell className="p-1">
-                      <select 
-                        value={item.productType} 
-                        onChange={(e) => handleChange(item.id, 'productType', e.target.value)}
-                        className="h-8 w-full border-transparent hover:border-slate-300 focus:ring-1 bg-transparent px-1 rounded-md text-sm"
-                      >
-                        <option value="tablet">Tablet</option>
-                        <option value="capsule">Capsule</option>
-                        <option value="syrup">Syrup</option>
-                        <option value="injection">Injection</option>
-                        <option value="cream">Cream</option>
-                        <option value="ointment">Ointment</option>
-                        <option value="drops">Drops</option>
-                        <option value="medical_device">Device</option>
-                      </select>
-                    </TableCell>
-                    <TableCell className="p-1">
-                      <div className="flex flex-col gap-1">
-                        <select 
-                          value={item.saleUnit} 
-                          onChange={(e) => handleChange(item.id, 'saleUnit', e.target.value)}
-                          className="h-7 w-full border-transparent hover:border-slate-300 focus:ring-1 bg-transparent px-1 rounded-md text-xs font-semibold"
-                        >
-                          {getValidUnitsForType(item.productType).map(u => (
-                            <option key={u.value} value={u.value}>{u.label}</option>
-                          ))}
-                        </select>
-                        {(item.productType === 'tablet' || item.productType === 'capsule') && (
-                          <div className="flex gap-1">
-                            <Input 
-                              type="number" value={item.stripsPerBox} onChange={(e) => handleChange(item.id, 'stripsPerBox', e.target.value)}
-                              className="h-6 w-full text-xs px-1" title="Strips per Box" placeholder="Str/Box"
-                            />
-                            <Input 
-                              type="number" value={item.unitsPerStrip} onChange={(e) => handleChange(item.id, 'unitsPerStrip', e.target.value)}
-                              className="h-6 w-full text-xs px-1" title="Units per Strip" placeholder="Units/Str"
-                            />
-                          </div>
-                        )}
-                        {item.productType === 'syrup' && (
-                          <Input 
-                            value={item.bottleVolume} onChange={(e) => handleChange(item.id, 'bottleVolume', e.target.value)}
-                            className="h-6 w-full text-xs px-1" title="Bottle Volume" placeholder="e.g. 100ml"
-                          />
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="p-1">
-                      <Input 
-                        value={item.batchNo} 
-                        onChange={(e) => handleChange(item.id, 'batchNo', e.target.value)} 
-                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2" 
-                        placeholder="Batch" 
-                      />
-                    </TableCell>
-                    <TableCell className="p-1 text-center bg-slate-50 border-x border-slate-200">
-                      <div className="flex items-center justify-between px-1">
+                filteredMedicines.map((item) => {
+                  const exp = getExpiryStatus(item.expiryDate);
+                  return (
+                    <TableRow 
+                      key={item.id} 
+                      className={`transition-colors ${
+                        item.isDirty ? 'bg-blue-50/30' : ''
+                      } ${
+                        exp.status === 'EXPIRED' 
+                          ? 'bg-red-50/50 hover:bg-red-50/80 border-l-4 border-l-red-500' 
+                          : exp.status === 'EXPIRING_SOON' 
+                          ? 'bg-amber-50/50 hover:bg-amber-50/80 border-l-4 border-l-amber-400' 
+                          : 'hover:bg-slate-50/60 border-l-4 border-l-transparent'
+                      }`}
+                    >
+                      {/* Name with Expiry Tag */}
+                      <TableCell className="p-1 align-top">
                         <Input 
-                          type="number" 
-                          value={item.stock} 
-                          onChange={(e) => handleChange(item.id, 'stock', e.target.value)} 
-                          disabled={!item.isNew}
-                          className={`h-8 w-16 border-transparent focus-visible:ring-1 bg-transparent px-2 disabled:opacity-100 disabled:font-bold ${item.stock < item.minimumStockAlert && item.stock !== '' ? 'text-red-600' : 'text-slate-800'}`} 
-                          placeholder="0" 
+                          value={item.name} 
+                          onChange={(e) => handleChange(item.id, 'name', e.target.value)} 
+                          className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2 font-medium" 
+                          placeholder="Name *" 
                         />
-                        {!item.isNew && (
-                          <div className="flex flex-col">
-                            <Button variant="ghost" size="icon" className="h-4 w-4 text-emerald-600 hover:text-emerald-800" title="Add Purchase" onClick={() => { setActiveMedicine(item); setPurchaseModalOpen(true); }}>
-                              <ShoppingCart className="w-3 h-3" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-4 w-4 text-orange-600 hover:text-orange-800 mt-1" title="Stock Adjustment" onClick={() => { setActiveMedicine(item); setAdjustModalOpen(true); }}>
-                              <ArrowLeftRight className="w-3 h-3" />
-                            </Button>
+                        {exp.status === 'EXPIRED' && (
+                          <div className="px-2 mt-0.5">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-300 uppercase tracking-wider">
+                              ● Expired
+                            </span>
                           </div>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="p-1">
-                      <Input 
-                        type="number" step="0.01" 
-                        value={item.purchasePrice} 
-                        onChange={(e) => handleChange(item.id, 'purchasePrice', e.target.value)} 
-                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2" 
-                        placeholder="0.00" 
-                      />
-                    </TableCell>
-                    <TableCell className="p-1">
-                      <Input 
-                        type="number" step="0.01" 
-                        value={item.sellingPrice} 
-                        onChange={(e) => handleChange(item.id, 'sellingPrice', e.target.value)} 
-                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2 font-bold text-emerald-700" 
-                        placeholder="0.00" 
-                      />
-                    </TableCell>
-                    <TableCell className="p-1">
-                      <Input 
-                        type="date" 
-                        value={item.expiryDate} 
-                        onChange={(e) => handleChange(item.id, 'expiryDate', e.target.value)} 
-                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2 text-sm" 
-                      />
-                    </TableCell>
-                    <TableCell className="p-1">
-                      <Input 
-                        value={item.supplierName} 
-                        onChange={(e) => handleChange(item.id, 'supplierName', e.target.value)} 
-                        className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2" 
-                        placeholder="Supplier Name" 
-                      />
-                    </TableCell>
-                    <TableCell className="p-1 text-center">
-                      <div className="flex items-center justify-center space-x-1">
-                        {item.isDirty && (
+                        {exp.status === 'EXPIRING_SOON' && (
+                          <div className="px-2 mt-0.5">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 uppercase tracking-wider">
+                              ▲ Expiring Soon
+                            </span>
+                          </div>
+                        )}
+                      </TableCell>
+
+                      {/* Type */}
+                      <TableCell className="p-1 align-top">
+                        <select 
+                          value={item.productType} 
+                          onChange={(e) => handleChange(item.id, 'productType', e.target.value)}
+                          className="h-8 w-full border-transparent hover:border-slate-300 focus:ring-1 bg-transparent px-1 rounded-md text-sm"
+                        >
+                          <option value="tablet">Tablet</option>
+                          <option value="capsule">Capsule</option>
+                          <option value="syrup">Syrup</option>
+                          <option value="injection">Injection</option>
+                          <option value="cream">Cream</option>
+                          <option value="ointment">Ointment</option>
+                          <option value="drops">Drops</option>
+                          <option value="medical_device">Device</option>
+                        </select>
+                      </TableCell>
+
+                      {/* Unit / Config */}
+                      <TableCell className="p-1 align-top">
+                        <div className="flex flex-col gap-1">
+                          <select 
+                            value={item.saleUnit} 
+                            onChange={(e) => handleChange(item.id, 'saleUnit', e.target.value)}
+                            className="h-7 w-full border-transparent hover:border-slate-300 focus:ring-1 bg-transparent px-1 rounded-md text-xs font-semibold"
+                          >
+                            {getValidUnitsForType(item.productType).map(u => (
+                              <option key={u.value} value={u.value}>{u.label}</option>
+                            ))}
+                          </select>
+                          {(item.productType === 'tablet' || item.productType === 'capsule') && (
+                            <div className="flex gap-1">
+                              <Input 
+                                type="number" value={item.stripsPerBox} onChange={(e) => handleChange(item.id, 'stripsPerBox', e.target.value)}
+                                className="h-6 w-full text-xs px-1" title="Strips per Box" placeholder="Str/Box"
+                              />
+                              <Input 
+                                type="number" value={item.unitsPerStrip} onChange={(e) => handleChange(item.id, 'unitsPerStrip', e.target.value)}
+                                className="h-6 w-full text-xs px-1" title="Units per Strip" placeholder="Units/Str"
+                              />
+                            </div>
+                          )}
+                          {item.productType === 'syrup' && (
+                            <Input 
+                              value={item.bottleVolume} onChange={(e) => handleChange(item.id, 'bottleVolume', e.target.value)}
+                              className="h-6 w-full text-xs px-1" title="Bottle Volume" placeholder="e.g. 100ml"
+                            />
+                          )}
+                        </div>
+                      </TableCell>
+
+                      {/* Batch No (OPTIONAL) */}
+                      <TableCell className="p-1 align-top">
+                        <Input 
+                          value={item.batchNo} 
+                          onChange={(e) => handleChange(item.id, 'batchNo', e.target.value)} 
+                          className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2 text-sm" 
+                          placeholder="Batch (optional)" 
+                        />
+                      </TableCell>
+
+                      {/* Stock Ledger */}
+                      <TableCell className="p-1 text-center bg-slate-50/70 border-x border-slate-200 align-top">
+                        <div className="flex items-center justify-between px-1">
+                          <Input 
+                            type="number" 
+                            value={item.stock} 
+                            onChange={(e) => handleChange(item.id, 'stock', e.target.value)} 
+                            disabled={!item.isNew}
+                            className={`h-8 w-16 border-transparent focus-visible:ring-1 bg-transparent px-2 disabled:opacity-100 disabled:font-bold ${item.stock < item.minimumStockAlert && item.stock !== '' ? 'text-red-600' : 'text-slate-800'}`} 
+                            placeholder="0" 
+                          />
+                          {!item.isNew && (
+                            <div className="flex flex-col">
+                              <Button variant="ghost" size="icon" className="h-4 w-4 text-emerald-600 hover:text-emerald-800" title="Add Purchase" onClick={() => { setActiveMedicine(item); setPurchaseModalOpen(true); }}>
+                                <ShoppingCart className="w-3 h-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-4 w-4 text-orange-600 hover:text-orange-800 mt-1" title="Stock Adjustment" onClick={() => { setActiveMedicine(item); setAdjustModalOpen(true); }}>
+                                <ArrowLeftRight className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      {/* Purchase Price */}
+                      <TableCell className="p-1 align-top">
+                        <Input 
+                          type="number" step="0.01" 
+                          value={item.purchasePrice} 
+                          onChange={(e) => handleChange(item.id, 'purchasePrice', e.target.value)} 
+                          className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2" 
+                          placeholder="0.00" 
+                        />
+                      </TableCell>
+
+                      {/* Selling Price */}
+                      <TableCell className="p-1 align-top">
+                        <Input 
+                          type="number" step="0.01" 
+                          value={item.sellingPrice} 
+                          onChange={(e) => handleChange(item.id, 'sellingPrice', e.target.value)} 
+                          className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2 font-bold text-emerald-700" 
+                          placeholder="0.00" 
+                        />
+                      </TableCell>
+
+                      {/* Expiry with Red / Yellowish Labeling */}
+                      <TableCell className="p-1 align-top">
+                        <Input 
+                          type="date" 
+                          value={item.expiryDate} 
+                          onChange={(e) => handleChange(item.id, 'expiryDate', e.target.value)} 
+                          className={`h-8 px-2 text-sm rounded transition-colors ${
+                            exp.status === 'EXPIRED' 
+                              ? 'border border-red-500 bg-red-100/70 text-red-900 font-bold focus-visible:ring-red-400' 
+                              : exp.status === 'EXPIRING_SOON' 
+                              ? 'border border-amber-400 bg-amber-100/70 text-amber-950 font-semibold focus-visible:ring-amber-400' 
+                              : 'border-transparent hover:border-slate-300 bg-transparent'
+                          }`} 
+                        />
+                        {exp.status === 'EXPIRED' && (
+                          <div className="mt-1 px-1">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-red-600 text-white shadow-xs">
+                              ● Expired ({exp.subText})
+                            </span>
+                          </div>
+                        )}
+                        {exp.status === 'EXPIRING_SOON' && (
+                          <div className="mt-1 px-1">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-400 text-amber-950 shadow-xs">
+                              ▲ Expiring Soon ({exp.subText})
+                            </span>
+                          </div>
+                        )}
+                        {exp.status === 'NORMAL' && item.expiryDate && (
+                          <div className="mt-1 px-1 text-[11px] text-emerald-700 font-medium">
+                            ✓ Valid ({exp.subText})
+                          </div>
+                        )}
+                      </TableCell>
+
+                      {/* Supplier (OPTIONAL) */}
+                      <TableCell className="p-1 align-top">
+                        <Input 
+                          value={item.supplierName} 
+                          onChange={(e) => handleChange(item.id, 'supplierName', e.target.value)} 
+                          className="h-8 border-transparent hover:border-slate-300 focus-visible:ring-1 bg-transparent px-2" 
+                          placeholder="Supplier (optional)" 
+                        />
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell className="p-1 text-center align-top">
+                        <div className="flex items-center justify-center space-x-1">
+                          {item.isDirty && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-blue-600 hover:bg-blue-100" 
+                              onClick={() => handleSaveRow(item)}
+                              disabled={loadingRowId === item.id || isSavingAll}
+                              title="Save Row"
+                            >
+                              {loadingRowId === item.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            </Button>
+                          )}
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8 text-blue-600 hover:bg-blue-100" 
-                            onClick={() => handleSaveRow(item)}
+                            className="h-8 w-8 text-red-600 hover:bg-red-100" 
+                            onClick={() => confirmDelete(item.id, item.isNew)}
                             disabled={loadingRowId === item.id || isSavingAll}
-                            title="Save Row"
+                            title="Erase Row"
                           >
-                            {loadingRowId === item.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            <Trash2 className="w-4 h-4" />
                           </Button>
-                        )}
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-red-600 hover:bg-red-100" 
-                          onClick={() => confirmDelete(item.id, item.isNew)}
-                          disabled={loadingRowId === item.id || isSavingAll}
-                          title="Erase Row"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { getExpiryStatus } from "../../components/inventory/MedicineTable";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -325,24 +326,43 @@ export default function Billing() {
                 </div>
                 {showSuggestions && suggestions.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    {suggestions.map((med) => (
-                      <div 
-                        key={med.id} 
-                        className="p-3 hover:bg-slate-50 cursor-pointer border-b last:border-0 flex justify-between items-center"
-                        onClick={() => handleSelectMedicine(med)}
-                      >
-                        <div>
-                          <p className="font-semibold text-slate-800">{med.name}</p>
-                          <p className="text-xs text-slate-500">{med.brandName || med.genericName || med.company} | Batch: {med.batchNo}</p>
+                    {suggestions.map((med) => {
+                      const exp = getExpiryStatus(med.expiryDate);
+                      return (
+                        <div 
+                          key={med.id} 
+                          className={`p-3 hover:bg-slate-50 cursor-pointer border-b last:border-0 flex justify-between items-center ${
+                            exp.status === 'EXPIRED' ? 'bg-red-50/50' : exp.status === 'EXPIRING_SOON' ? 'bg-amber-50/40' : ''
+                          }`}
+                          onClick={() => handleSelectMedicine(med)}
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-slate-800">{med.name}</p>
+                              {exp.status === 'EXPIRED' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white">
+                                  EXPIRED
+                                </span>
+                              )}
+                              {exp.status === 'EXPIRING_SOON' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-400 text-amber-950">
+                                  EXPIRING SOON
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500">
+                              {med.brandName || med.genericName || med.company || 'Direct'} | Batch: {med.batchNo || 'N/A'}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-blue-600">₹{med.sellingPrice.toFixed(2)}</p>
+                            <p className={`text-xs ${med.stock > 10 ? 'text-green-600' : 'text-red-600 font-bold'}`}>
+                              Stock: {med.stock} {med.saleUnit || 'piece'}s
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-bold text-blue-600">₹{med.sellingPrice.toFixed(2)}</p>
-                          <p className={`text-xs ${med.stock > 10 ? 'text-green-600' : 'text-red-600 font-bold'}`}>
-                            Stock: {med.stock} {med.saleUnit || 'piece'}s
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
                 {showSuggestions && searchQuery.length > 1 && suggestions.length === 0 && (
@@ -379,7 +399,7 @@ export default function Billing() {
                       items.map((item, index) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{item.productName}</TableCell>
-                          <TableCell className="text-xs text-slate-500">{item.batchNo}</TableCell>
+                          <TableCell className="text-xs text-slate-500">{item.batchNo || 'N/A'}</TableCell>
                           <TableCell>
                             <select 
                               className="border-slate-200 rounded-md text-xs p-1 w-full"
